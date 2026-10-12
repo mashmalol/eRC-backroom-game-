@@ -1,0 +1,11 @@
+# REA reverse-engineering scratch space (extracted from the original shell).
+# Not part of the game.
+rea-target/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/

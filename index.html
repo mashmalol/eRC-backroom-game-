@@ -1,0 +1,2880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>THE BACKROOMS — Onchain</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect width='16' height='16' fill='%23c7b264'/><rect x='3' y='5' width='10' height='7' fill='%236d6030'/></svg>">
+<style>
+  :root{--amber:#ffe9a0;--gold:#ffd24a;--green:#8de08d;--red:#ff8a7a;--blue:#8fd8ff}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:#0b0a05;
+    font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace;color:var(--amber);
+    user-select:none;-webkit-user-select:none}
+  canvas#c{display:block;width:100vw;height:100vh;cursor:none}
+  #hud{position:fixed;inset:0;pointer-events:none}
+
+  /* ---------- HUD ---------- */
+  #stats{position:absolute;top:14px;left:14px;font-size:12px;line-height:1.6;
+    background:rgba(12,10,3,.55);border:1px solid rgba(255,233,160,.22);
+    padding:10px 13px;border-radius:8px;letter-spacing:.03em;min-width:216px;
+    backdrop-filter:blur(3px)}
+  #stats b{color:#fff6d6;font-weight:600}
+  #stats .row{display:flex;justify-content:space-between;gap:14px}
+  #stats .lab{opacity:.6}
+  #stats .ok{color:var(--green)} #stats .warn{color:var(--gold)} #stats .bad{color:var(--red)}
+  #title{font-size:13px;letter-spacing:.22em;margin-bottom:8px;color:#fff3c4;
+    border-bottom:1px solid rgba(255,233,160,.2);padding-bottom:6px}
+  #mode-chip{display:inline-block;margin-top:8px;padding:3px 9px;border-radius:5px;
+    font-size:10.5px;letter-spacing:.2em;border:1px solid}
+  #mode-chip.live{color:var(--gold);border-color:rgba(255,210,74,.6);background:rgba(255,210,74,.1)}
+  #mode-chip.practice{color:var(--blue);border-color:rgba(143,216,255,.5);background:rgba(143,216,255,.08)}
+
+  #radar{position:absolute;right:16px;bottom:16px;width:190px;height:190px;
+    border:1px solid rgba(255,233,160,.28);border-radius:10px;opacity:.92}
+  #radarlab{position:absolute;right:20px;bottom:210px;font-size:10px;opacity:.55;letter-spacing:.18em}
+
+  #keys{position:absolute;left:14px;bottom:14px;font-size:11.5px;line-height:1.75;
+    background:rgba(12,10,3,.5);border:1px solid rgba(255,233,160,.16);
+    padding:9px 12px;border-radius:8px;opacity:.8}
+  #keys .hint{opacity:.6}
+  #keys kbd{background:rgba(255,233,160,.14);border:1px solid rgba(255,233,160,.3);
+    border-radius:4px;padding:0 5px;font-size:11px}
+
+  /* ---------- overlays ---------- */
+  .panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:none;
+    background:rgba(14,12,4,.93);border:1px solid rgba(255,233,160,.35);border-radius:10px;
+    padding:15px 17px;min-width:min(520px,88vw);backdrop-filter:blur(4px);
+    box-shadow:0 18px 60px rgba(0,0,0,.6);pointer-events:auto;max-height:86vh;overflow:auto}
+  .stitle{font-size:12px;letter-spacing:.22em;opacity:.85;margin-bottom:10px;
+    border-bottom:1px solid rgba(255,233,160,.2);padding-bottom:7px;color:#fff3c4}
+  .srow{display:flex;align-items:center;gap:10px;font-size:12.5px;padding:5px 4px;border-radius:6px}
+  .sd{flex:1;opacity:.6;font-size:11.5px}
+  .shint{margin-top:9px;font-size:10.5px;opacity:.45;letter-spacing:.14em;text-align:center}
+
+  #flash{position:absolute;left:50%;top:70px;transform:translateX(-50%);font-size:14px;
+    letter-spacing:.14em;opacity:0;transition:opacity .4s;text-shadow:0 2px 10px #000;white-space:nowrap}
+  #horde{position:absolute;left:50%;top:26%;transform:translate(-50%,-50%);
+    font-size:min(7vw,54px);font-weight:800;letter-spacing:.14em;color:#ff5b3d;opacity:0;
+    transition:opacity .5s;text-shadow:0 0 30px rgba(255,40,0,.85)}
+  #vignette{position:absolute;inset:0;opacity:0;transition:opacity .25s;
+    background:radial-gradient(ellipse at center,rgba(120,0,0,0) 35%,rgba(120,0,0,.55) 78%,rgba(60,0,0,.9) 100%)}
+  #dmg{position:absolute;inset:0;opacity:0;transition:opacity .12s;
+    background:radial-gradient(ellipse at center,rgba(255,40,0,0) 45%,rgba(255,30,0,.30) 100%)}
+
+  #death{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:center;gap:10px;background:rgba(20,4,0,.55);opacity:0;transition:opacity .35s}
+  #death.on{display:flex;opacity:1}
+  #death h1{font-size:min(9vw,64px);margin:0;letter-spacing:.2em;color:#ffb199;text-shadow:0 0 26px rgba(255,60,0,.7)}
+  #death p{margin:0;opacity:.7;letter-spacing:.14em;font-size:13px}
+  #d-timer{margin-top:8px;font-size:15px;letter-spacing:.1em;color:var(--amber)}
+  #d-timer b{font-size:26px}
+  #d-timer em{font-style:normal;padding:1px 7px;border:1px solid rgba(255,233,160,.5);border-radius:5px}
+  #d-spect{font-size:12px;opacity:.62;letter-spacing:.1em}
+  #d-settle{margin-top:12px;display:none;gap:10px;flex-wrap:wrap;justify-content:center;pointer-events:auto}
+  #d-settle.on{display:flex}
+
+  /* ---------- buttons ---------- */
+  button{font:inherit;color:var(--amber);cursor:pointer;background:rgba(255,233,160,.1);
+    border:1px solid rgba(255,233,160,.38);border-radius:7px;padding:7px 16px;font-size:11.5px;
+    letter-spacing:.16em;transition:background .15s,transform .12s}
+  button:hover:not(:disabled){background:rgba(255,233,160,.22)}
+  button:active:not(:disabled){transform:translateY(1px)}
+  button:disabled{opacity:.35;cursor:default}
+  button.pri{background:rgba(255,210,74,.18);border-color:rgba(255,210,74,.7);color:var(--gold)}
+  button.pri:hover:not(:disabled){background:rgba(255,210,74,.3)}
+  button.good{background:rgba(120,220,140,.14);border-color:rgba(140,230,160,.5);color:var(--green)}
+  button.grim{background:rgba(150,40,30,.2);border-color:rgba(255,120,100,.5);color:#ff9a8a}
+  button.sm{padding:5px 11px;font-size:10.5px;letter-spacing:.12em}
+  input{font:inherit;font-size:12.5px;padding:7px 10px;border-radius:7px;color:#fff8e6;
+    background:rgba(10,9,3,.86);border:1px solid rgba(255,220,140,.45);outline:none;width:100%}
+  input:focus{border-color:rgba(255,210,74,.8)}
+  .mono{font-variant-numeric:tabular-nums}
+
+  /* ---------- loading / menu ---------- */
+  #loading,#pause{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:14px;background:#100e06;z-index:20;text-align:center;padding:20px}
+  #pause{display:none;background:rgba(10,9,3,.72);backdrop-filter:blur(4px);cursor:pointer;flex-direction:column}
+  #pause .big{font-size:16px;letter-spacing:.2em;padding:11px 22px;cursor:pointer;
+    border:1px solid rgba(255,233,160,.45);border-radius:8px}
+  #loading h1,#pause h1{font-size:min(10vw,58px);margin:0;letter-spacing:.26em;color:#ffe9a0;
+    text-shadow:0 0 40px rgba(255,220,120,.35)}
+  .sub{font-size:12px;letter-spacing:.22em;opacity:.6}
+  #track{width:min(340px,70vw);height:5px;background:rgba(255,233,160,.16);border-radius:3px;overflow:hidden}
+  #bar{height:100%;width:2%;background:linear-gradient(90deg,#ffd980,#fff6d6);transition:width .3s}
+
+  #menu{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;
+    justify-content:flex-start;gap:13px;z-index:19;text-align:center;padding:26px 20px;overflow:auto;
+    background:radial-gradient(ellipse at center,rgba(16,14,6,.72) 0%,rgba(8,7,2,.95) 70%);
+    backdrop-filter:blur(5px)}
+  #menu h1{font-size:min(11vw,58px);margin:0;letter-spacing:.3em;color:#ffe9a0;text-shadow:0 0 46px rgba(255,220,120,.4)}
+  #menu .wrap{width:min(880px,94vw);display:flex;flex-direction:column;gap:13px}
+  #menu .modes{display:flex;gap:13px;flex-wrap:wrap;justify-content:center}
+  .mode{cursor:pointer;font:inherit;color:var(--amber);text-align:left;
+    background:rgba(255,233,160,.07);border:1px solid rgba(255,233,160,.38);border-radius:10px;
+    padding:14px 20px;min-width:min(280px,84vw);transition:background .15s,transform .15s}
+  .mode:hover{background:rgba(255,233,160,.17);transform:translateY(-2px)}
+  .mode b{display:block;font-size:15px;letter-spacing:.2em;color:#fff6d6}
+  .mode small{display:block;margin-top:5px;font-size:11px;opacity:.6;line-height:1.6}
+  .mode.live{border-color:rgba(255,210,74,.6);background:rgba(255,210,74,.12)}
+  .mode.live b{color:var(--gold)}
+  .mode.practice{border-color:rgba(143,216,255,.45);background:rgba(143,216,255,.07)}
+  .mode.practice b{color:var(--blue)}
+
+  .box{border:1px solid rgba(255,233,160,.2);border-radius:10px;padding:12px 16px;
+    background:rgba(12,10,3,.5);text-align:left}
+  .box .ttl{font-size:11px;letter-spacing:.24em;opacity:.65;margin-bottom:9px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:10px;letter-spacing:.16em;opacity:.6}
+  .note{font-size:10.5px;opacity:.5;margin-top:8px;line-height:1.65}
+  .note b{color:var(--gold);opacity:.9}
+  .kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:3px 0}
+  .kv span:first-child{opacity:.6}
+  .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:11px}
+  .ledger{font-size:11.5px;line-height:1.8}
+  .mkeys{font-size:10.5px;opacity:.4;line-height:2;letter-spacing:.06em}
+  .mkeys kbd{background:rgba(255,233,160,.14);border:1px solid rgba(255,233,160,.3);
+    border-radius:4px;padding:0 5px;font-size:10px}
+
+  /* ---------- toasts ---------- */
+  #toasts{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:30;
+    display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none;width:max-content;max-width:92vw}
+  .toast{font-size:11.5px;letter-spacing:.1em;padding:8px 14px;border-radius:7px;
+    background:rgba(14,12,4,.94);border:1px solid rgba(255,233,160,.35);
+    box-shadow:0 8px 30px rgba(0,0,0,.6);animation:tin .3s ease-out;white-space:pre-wrap;text-align:center}
+  .toast.err{border-color:rgba(255,140,110,.6);color:#ffb0a0}
+  .toast.ok{border-color:rgba(140,230,160,.55);color:#bff3c4}
+  @keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  /* ---------- touch ---------- */
+  #touch{position:fixed;inset:0;display:none;z-index:8}
+  #stick{position:absolute;left:22px;bottom:22px;width:132px;height:132px;border-radius:50%;
+    background:rgba(255,233,160,.06);border:1px solid rgba(255,233,160,.22);pointer-events:auto;touch-action:none}
+  #knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;border-radius:50%;
+    background:rgba(255,233,160,.3);border:1px solid rgba(255,233,160,.5)}
+  #tbtns{position:absolute;right:14px;bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;pointer-events:auto}
+  .tb{font:inherit;font-size:11px;letter-spacing:.12em;color:var(--amber);cursor:pointer;
+    background:rgba(12,10,3,.62);border:1px solid rgba(255,233,160,.35);border-radius:12px;
+    width:78px;height:52px;touch-action:none;-webkit-user-select:none;user-select:none}
+  body.touch #keys{display:none}
+  body.touch #radar{width:120px;height:120px;bottom:auto;top:14px;right:14px}
+  body.touch #radarlab{display:none}
+  body.touch #stats{font-size:10px;min-width:150px;padding:7px 9px}
+  body.touch canvas{cursor:default}
+
+  @media (max-width:760px){
+    #keys{display:none} #menu h1{font-size:32px;letter-spacing:.16em}
+    .grid3,.grid2{grid-template-columns:1fr}
+    #menu .mode{min-width:min(300px,90vw);padding:11px 14px}
+    .panel{min-width:min(340px,94vw);font-size:12px}
+    #death h1{font-size:28px;letter-spacing:.12em}
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div id="stats">
+    <div id="title">LEVEL 0 · NO&nbsp;CLIP</div>
+    <div class="row"><span class="lab">playing as</span><b id="h-form">entity</b></div>
+    <div class="row"><span class="lab">speed</span><b id="h-speed">0.0 m/s</b></div>
+    <div class="row"><span class="lab">wing</span><b id="h-biome">offices</b></div>
+    <div class="row"><span class="lab">entities</span><b id="h-mons">0</b></div>
+    <div class="row"><span class="lab">wing coins</span><b id="h-coins">0</b></div>
+    <div class="row"><span class="lab">graze</span><b id="h-score">0</b></div>
+    <div class="row"><span class="lab">run ends</span><b id="h-warp">—</b></div>
+    <div class="row"><span class="lab">wallet</span><b id="h-wallet" class="warn">practice</b></div>
+    <div class="row"><span class="lab">BACK balance</span><b id="h-back">—</b></div>
+    <div class="row"><span class="lab">claimable</span><b id="h-pending">0</b></div>
+    <div class="row"><span class="lab">daily left</span><b id="h-daily">—</b></div>
+    <div class="row"><span class="lab">emission</span><b id="h-emis">—</b></div>
+    <div class="row"><span class="lab">fps</span><b id="h-fps">0</b></div>
+    <div id="mode-chip" class="practice">PRACTICE</div>
+    <div class="actions" style="margin-top:9px;pointer-events:auto">
+      <button class="sm" id="btn-sound">SOUND: ON</button>
+      <button class="sm" id="btn-menu">MENU</button>
+    </div>
+  </div>
+
+  <div id="radarlab">PROXIMITY</div>
+  <canvas id="radar" width="190" height="190"></canvas>
+
+  <div id="keys">
+    <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move &nbsp; <kbd>shift</kbd> sprint &nbsp; <kbd>mouse</kbd> look<br>
+    <kbd>E</kbd> extract &nbsp; <kbd>B</kbd> buy BACK &nbsp; <kbd>C</kbd> claim &nbsp; <kbd>esc</kbd> pause<br>
+    <kbd>R</kbd> die &nbsp; <kbd>H</kbd> horde &nbsp; <kbd>M</kbd> sound
+    <br><span class="hint">touch: left stick moves · drag on the right to look</span>
+  </div>
+
+  <div id="flash"></div>
+  <div id="horde">HORDE</div>
+  <div id="vignette"></div>
+  <div id="dmg"></div>
+
+  <div id="death">
+    <h1 id="d-title">DISASSEMBLED</h1>
+    <p id="d-sub">the walls take you somewhere else…</p>
+    <div id="d-timer">extracting in <b id="d-count">10</b>s &nbsp;·&nbsp; <em>SPACE</em> now</div>
+    <div id="d-spect">…</div>
+    <div id="d-settle">
+      <button class="pri" id="d-settle-btn">SETTLE RUN</button>
+      <button class="good" id="d-claim-btn">CLAIM ALL</button>
+      <button id="d-menu-btn">MENU</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<div id="touch">
+  <div id="stick"><div id="knob"></div></div>
+  <div id="tbtns">
+    <button class="tb" id="t-sprint">RUN</button>
+    <button class="tb" id="t-exit">EXIT</button>
+    <button class="tb" id="t-claim">CLAIM</button>
+    <button class="tb" id="t-horde">HORDE</button>
+    <button class="tb" id="t-menu">MENU</button>
+  </div>
+</div>
+
+<div id="loading">
+  <h1>BACKROOMS</h1>
+  <div class="sub" id="lstat">generating the building…</div>
+  <div id="track"><div id="bar"></div></div>
+  <div class="sub" id="lhint" style="opacity:.35"></div>
+</div>
+
+<div id="menu">
+  <h1>BACKROOMS</h1>
+  <div class="sub">level 0 · onchain</div>
+  <div class="wrap">
+
+    <div class="modes">
+      <button class="mode practice" id="m-practice">
+        <b>PRACTICE</b>
+        <small>no wallet, no chain. every cap mirrors the vault exactly — real rehearsal, not a faucet</small>
+      </button>
+      <button class="mode live" id="m-earn">
+        <b>EARN · ONCHAIN</b>
+        <small id="m-earn-sub">connect a wallet to stake BACK and claim what you collect</small>
+      </button>
+    </div>
+
+    <div class="box" id="walletbox">
+      <div class="ttl">WALLET</div>
+      <div class="kv"><span>account</span><b id="w-acct">not connected</b></div>
+      <div class="kv"><span>network</span><b id="w-net">—</b></div>
+      <div class="kv"><span>BACK balance</span><b id="w-bal">—</b></div>
+      <div class="kv"><span>vault allowance</span><b id="w-allow">—</b></div>
+      <div class="actions">
+        <button class="pri" id="w-connect">CONNECT</button>
+        <button id="w-disconnect" disabled>DISCONNECT</button>
+        <button id="w-refresh" disabled>REFRESH</button>
+        <button class="sm" id="w-explorer">VIEW ON EXPLORER</button>
+      </div>
+      <div class="note" id="w-note">No wallet? <b>Practice mode is fully functional</b> and uses the same caps, the same rate ceiling and the same daily reset as the live vault.</div>
+    </div>
+
+    <div class="box" id="configbox">
+      <div class="ttl">CONTRACT</div>
+      <div class="grid3">
+        <div class="field"><label>TOKEN (BACK)</label><input id="c-token" placeholder="0x…" spellcheck="false"></div>
+        <div class="field"><label>VAULT</label><input id="c-vault" placeholder="0x…" spellcheck="false"></div>
+        <div class="field"><label>CHAIN ID</label><input id="c-chain" placeholder="1" spellcheck="false"></div>
+      </div>
+      <div class="actions">
+        <button id="c-save">SAVE</button>
+        <button id="c-clear" class="sm">CLEAR</button>
+      </div>
+      <div class="note">Targets <b>Ethereum mainnet</b>. Saved to this browser only. Verify both addresses on
+        <b>etherscan.io</b> before sending any ETH — nothing in this page validates them for you.</div>
+    </div>
+
+    <div class="box" id="econbox">
+      <div class="ttl">VAULT</div>
+      <div class="grid2">
+        <div class="ledger" id="econ-left"></div>
+        <div class="ledger" id="econ-right"></div>
+      </div>
+      <div class="actions">
+        <button id="w-refresh2" class="sm">REFRESH VAULT DATA</button>
+        <button id="w-reset-prac" class="sm">RESET PRACTICE LEDGER</button>
+      </div>
+      <div class="note">Read live from the contract when one is configured and a wallet is connected.
+        In practice these are the shipped defaults. The practice ledger enforces the
+        <b>same entry fee, rate ceiling and daily cap</b> as the vault — it is a rehearsal, not a faucet.</div>
+    </div>
+
+    <div class="mkeys">
+      <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move · <kbd>shift</kbd> sprint · <kbd>mouse</kbd> look ·
+      <kbd>E</kbd> extract · <kbd>B</kbd> buy · <kbd>C</kbd> claim · <kbd>R</kbd> die · <kbd>H</kbd> horde
+    </div>
+  </div>
+</div>
+
+<div id="pause">
+  <h1>PAUSED</h1>
+  <div class="sub">you noclipped out of reality</div>
+  <div class="big" id="p-resume">click to resume</div>
+  <div class="big" id="p-menu" style="font-size:13px;opacity:.7;margin-top:6px">main menu</div>
+</div>
+
+<script>
+/* ==========================================================================
+   BACKROOMS — ONCHAIN
+   Single file. No dependencies. No server. The chain is the whole backend.
+
+   Architecture
+     · render     : raw WebGL1, DDA wall casting + analytic floor/ceiling
+                     projection + billboard sprites. All textures are generated
+                     procedurally into an atlas at boot. Zero asset downloads.
+     · economy    : vault reads/writes over EIP-1193 with a hand-rolled ABI
+                     codec and a pure-JS keccak256. No ethers, no web3.
+     · practice   : a local ledger that mirrors the vault's arithmetic exactly,
+                     including the rate ceiling and the UTC daily reset.
+   ========================================================================== */
+"use strict";
+
+/* --------------------------------------------------------------------------
+   0. CONFIG  —  the only thing you need to edit
+   -------------------------------------------------------------------------- */
+const CONFIG = {
+  chainId:      1,
+  chainName:    "Ethereum",
+  tokenAddress: "",            // paste your BackroomCoin
+  vaultAddress: "",            // paste your BackroomVault
+  explorer:     "https://etherscan.io"
+};
+
+const SCALE   = 10n ** 10n;   // 10 decimals
+const DECIMALS = 10;
+
+/* Shipped vault defaults — used verbatim in practice mode and as the
+   fallback when no contract is configured. Mirrors contract.md §4.1. */
+const DEFAULTS = {
+  entryFee:            500n,
+  minRunDuration:      300,
+  maxRunDuration:      3600,
+  rewardRatePerSecond: 25n,
+  maxRunReward:        90_000n,
+  dailyCap:            250_000n,
+  cooldown:            120,
+  settleWindow:        1800,
+  maxRunsPerDay:       8,
+  survivalStakeReturnBps: 10_000n,
+  emissionReserve:     20_000_000_000n,
+  initialReserve:      20_000_000_000n,
+  reserveFloor:        2_000_000_000n
+};
+
+const CFG_KEY = "backrooms.cfg.v1";
+const PR_KEY  = "backrooms.practice.v1";
+
+/* -------------------------------------------------------------------------- */
+const $  = (id) => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+
+/* ==========================================================================
+   1. keccak256 — original Keccak (0x01 padding), not SHA3-256
+   ========================================================================== */
+const KECCAK_RC = [
+  0x0000000000000001n,0x0000000000008082n,0x800000000000808An,0x8000000080008000n,
+  0x000000000000808Bn,0x0000000080000001n,0x8000000080008081n,0x8000000000008009n,
+  0x000000000000008An,0x0000000000000088n,0x0000000080008009n,0x000000008000000An,
+  0x000000008000808Bn,0x800000000000008Bn,0x8000000000008089n,0x8000000000008003n,
+  0x8000000000008002n,0x8000000000000080n,0x000000000000800An,0x800000008000000An,
+  0x8000000080008081n,0x8000000000008080n,0x0000000080000001n,0x8000000080008008n
+];
+const KECCAK_ROTC = [1,3,6,10,15,21,28,36,45,55,2,14,27,41,56,8,25,43,62,18,39,61,20,44];
+const KECCAK_PILN = [10,7,11,17,18,3,5,16,8,21,24,4,15,23,19,13,12,2,20,14,22,9,6,1];
+const M64 = 0xFFFFFFFFFFFFFFFFn;
+
+function keccakF(st){
+  for(let r=0;r<24;r++){
+    const C = new Array(5);
+    for(let x=0;x<5;x++) C[x] = st[x]^st[x+5]^st[x+10]^st[x+15]^st[x+20];
+    for(let x=0;x<5;x++){
+      const n = C[(x+1)%5];
+      const D = C[(x+4)%5] ^ (((n<<1n)|(n>>63n)) & M64);
+      for(let y=0;y<25;y+=5) st[y+x] ^= D;
+    }
+    let t = st[1];
+    for(let i=0;i<24;i++){
+      const j = KECCAK_PILN[i], tmp = st[j], rot = BigInt(KECCAK_ROTC[i]);
+      st[j] = ((t<<rot)|(t>>(64n-rot))) & M64;
+      t = tmp;
+    }
+    for(let y=0;y<25;y+=5){
+      const a=st[y],b=st[y+1],c=st[y+2],d=st[y+3],e=st[y+4];
+      st[y]   = a ^ ((~b & M64) & c);
+      st[y+1] = b ^ ((~c & M64) & d);
+      st[y+2] = c ^ ((~d & M64) & e);
+      st[y+3] = d ^ ((~e & M64) & a);
+      st[y+4] = e ^ ((~a & M64) & b);
+    }
+    st[0] ^= KECCAK_RC[r];
+  }
+}
+
+function keccak256(bytes){
+  const RATE = 136, len = bytes.length;
+  const st = new Array(25).fill(0n);
+  const full = len - (len % RATE);
+  for(let i=0;i<full;i+=RATE){
+    for(let j=0;j<RATE;j++) st[j>>3] ^= BigInt(bytes[i+j]) << BigInt((j&7)*8);
+    keccakF(st);
+  }
+  const rem = len % RATE;
+  const blk = new Uint8Array(RATE);
+  blk.set(bytes.subarray(full));
+  blk[rem]      |= 0x01;          // Keccak domain pad
+  blk[RATE-1]   |= 0x80;
+  for(let j=0;j<RATE;j++) st[j>>3] ^= BigInt(blk[j]) << BigInt((j&7)*8);
+  keccakF(st);
+  const out = new Uint8Array(32);
+  for(let i=0;i<32;i++) out[i] = Number((st[i>>3] >> BigInt((i&7)*8)) & 0xFFn);
+  return out;
+}
+
+const hex = (u8) => Array.from(u8, b => b.toString(16).padStart(2,"0")).join("");
+const toHex = (b) => "0x" + hex(b);
+
+/* Known-answer self-test. Wrong padding or a rotated constant table produces
+   wrong selectors and every contract call fails silently against a proxy. */
+(function selftest(){
+  const h  = (s) => hex(keccak256(new TextEncoder().encode(s)));
+  const ok = [];
+  const bad = [];
+  const check = (input, expect) => (h(input) === expect ? ok : bad).push(input.slice(0, 34));
+  check("", "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
+  check("Transfer(address,address,uint256)", "ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef");
+  check("balanceOf(address)", "70a08231b98ef4ca268c9cc3f6b4590e4bfec28280db06bb5d45e689f2a360be");
+  if (bad.length) console.error("keccak256 SELF-TEST FAILED:", bad);
+  else console.info("keccak256 ok (" + ok.length + " known-answer vectors)");
+})();
+
+/* ==========================================================================
+   2. ABI codec — fixed-size types only, which is all these calls need
+   ========================================================================== */
+const sigCache = new Map();
+function selector(sig){
+  if(!sigCache.has(sig))
+    sigCache.set(sig, hex(keccak256(new TextEncoder().encode(sig))).slice(0,8));
+  return sigCache.get(sig);
+}
+const pad32 = (h) => h.replace(/^0x/,"").toLowerCase().padStart(64,"0");
+
+const ABI = {
+  u256 : (v) => { const b = BigInt(v).toString(16); return pad32(b); },
+  u64  : (v) => ABI.u256(v),
+  u32  : (v) => ABI.u256(v),
+  u16  : (v) => ABI.u256(v),
+  u8   : (v) => ABI.u256(v),
+  bool : (v) => ABI.u256(v ? 1 : 0),
+  addr : (a) => pad32(a.toLowerCase()),
+  b32  : (h) => pad32(h)
+};
+const W = {};
+function buildCalls(){
+  W.entryFee               = selector("entryFee()");
+  W.minRunDuration         = selector("minRunDuration()");
+  W.maxRunDuration         = selector("maxRunDuration()");
+  W.rewardRatePerSecond    = selector("rewardRatePerSecond()");
+  W.maxRunReward           = selector("maxRunReward()");
+  W.dailyCap               = selector("dailyCap()");
+  W.cooldown               = selector("cooldown()");
+  W.settleWindow           = selector("settleWindow()");
+  W.maxRunsPerDay          = selector("maxRunsPerDay()");
+  W.survivalStakeReturnBps = selector("survivalStakeReturnBps()");
+  W.emissionReserve        = selector("emissionReserve()");
+  W.initialReserve         = selector("initialReserve()");
+  W.reserveFloor           = selector("reserveFloor()");
+  W.totalClaimed           = selector("totalClaimed()");
+  W.paused                 = selector("paused()");
+  W.token                  = selector("token()");
+  W.pendingPayout          = selector("pendingPayout(address)");
+  W.claimedToday           = selector("claimedToday(address)");
+  W.runsToday              = selector("runsToday(address)");
+  W.lastRunEnd             = selector("lastRunEnd(address)");
+  W.balanceOf              = selector("balanceOf(address)");
+  W.allowance              = selector("allowance(address,address)");
+  W.approve                = selector("approve(address,uint256)");
+  W.transfer               = selector("transfer(address,uint256)");
+  W.quoteBuy               = selector("quoteBuy(uint256)");
+  W.enterRun               = selector("enterRun(bytes32,uint32)");
+  W.settleRun              = selector("settleRun(uint256,bool)");
+  W.claimAll               = selector("claimAll()");
+  W.abandonRunFor          = selector("abandonRunFor(address)");
+  W.decimals               = selector("decimals()");
+  W.totalSupply            = selector("totalSupply()");
+  W.buy                    = selector("buy(uint256)");
+}
+buildCalls();
+
+function decodeUint(hexStr){ return BigInt("0x" + hexStr.replace(/^0x/,"") || "0x0"); }
+function decodeAddr(hexStr){ return "0x" + hexStr.replace(/^0x/,"").slice(24,64); }
+function decodeBool(hexStr){ return BigInt("0x" + hexStr.replace(/^0x/,"") || "0x0") !== 0n; }
+function decodeString(hexStr){
+  const h = hexStr.replace(/^0x/,"");
+  if(h.length < 128) return "";
+  const len = parseInt(h.slice(64,128),16);
+  const bytes = new Uint8Array(len);
+  for(let i=0;i<len;i++) bytes[i] = parseInt(h.substr(128+i*2,2),16);
+  return new TextDecoder().decode(bytes);
+}
+
+/* Amount formatting. Never routes a raw uint256 through Number — 666,666,666,666e10
+   is ~740,000x beyond Number.MAX_SAFE_INTEGER. */
+function fmt(raw, dp=4){
+  const v = BigInt(raw);
+  const s = v.toString().padStart(21,"0");
+  const i = s.length - DECIMALS;
+  const whole = s.slice(0,i).replace(/\B(?=(\d{3})+(?!\d))/g,",");
+  return whole + "." + s.slice(i, i+dp);
+}
+function fmtShort(raw){
+  const v = BigInt(raw);
+  const whole = v / SCALE, frac = (v % SCALE) / (SCALE / 100n);
+  return whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g,",") + "." + frac.toString().padStart(2,"0");
+}
+function parseHuman(s){
+  s = String(s ?? "").trim().replace(/,/g,"");   // accept 1,000,000
+  if(!s) return 0n;
+  if(!/^\d*\.?\d*$/.test(s)) return null;
+  const [w="0", f=""] = s.split(".");
+  return BigInt(w||"0") * SCALE + BigInt((f + "0".repeat(DECIMALS)).slice(0, DECIMALS) || "0");
+}
+
+/* ==========================================================================
+   3. Chain — EIP-1193 only
+   ========================================================================== */
+const Chain = {
+  provider: (typeof window !== "undefined" ? window.ethereum : null) || null,
+  account:  null,
+  chainId:  null,
+
+  get available(){ return !!this.provider; },
+
+  async connect(){
+    if(!this.provider) throw new Error("No injected wallet. Practice mode is available.");
+    const accts = await this.provider.request({ method:"eth_requestAccounts" });
+    if(!accts || !accts.length) throw new Error("Wallet returned no accounts.");
+    this.account = accts[0];
+    this.chainId = await this.provider.request({ method:"eth_chainId" });
+    if(typeof this.chainId === "string") this.chainId = parseInt(this.chainId,16);
+    if(this.chainId !== CONFIG.chainId) await this.switchChain();
+    this.listen();
+    return this.account;
+  },
+
+  async switchChain(){
+    try{
+      await this.provider.request({
+        method:"wallet_switchEthereumChain",
+        params:[{ chainId: "0x" + CONFIG.chainId.toString(16) }]
+      });
+    }catch(e){
+      throw new Error("Wrong network. Switch to " + CONFIG.chainName +
+                      " (chainId " + CONFIG.chainId + ") in your wallet.");
+    }
+    this.chainId = CONFIG.chainId;
+  },
+
+  listen(){
+    if(this._listening) return;
+    this._listening = true;
+    const p = this.provider;
+    if(p.on){
+      p.on("accountsChanged", a => { this.account = a && a[0] ? a[0] : null; UI.onAccountChange(); });
+      p.on("chainChanged", c => { this.chainId = parseInt(c,16); UI.onAccountChange(); });
+      if(p.removeListener) p.on("disconnect", () => { this.account = null; UI.onAccountChange(); });
+    }
+  },
+
+  disconnect(){ this.account = null; UI.onAccountChange(); },
+
+  async sendTx(to, data, value){
+    if(!this.provider) throw new Error("No wallet.");
+    if(!this.account) throw new Error("Wallet not connected.");
+    const from = this.account;
+    return await this.provider.request({
+      method:"eth_sendTransaction",
+      params:[{ from, to, data: data || "0x", value: value ? "0x"+BigInt(value).toString(16) : "0x0" }]
+    });
+  },
+
+  async call(to, data){
+    if(!this.provider) throw new Error("No wallet.");
+    const from = this.account || undefined;
+    const params = from ? [{ to, data, from }, "latest"] : [{ to, data }, "latest"];
+    return await this.provider.request({ method:"eth_call", params });
+  },
+
+  async callUint(to, data){
+    const r = await this.call(to, data);
+    return decodeUint(r);
+  }
+};
+
+const addrOk = (a) => typeof a === "string" && /^0x[0-9a-fA-F]{40}$/.test(a);
+const short  = (a) => a ? a.slice(0,6) + "…" + a.slice(-4) : "—";
+
+/* ==========================================================================
+   4. Economy — one surface, two backends
+   ========================================================================== */
+const Econ = {
+  mode: "practice",             // "practice" | "earn"
+  config: { ...DEFAULTS },
+  balance: 0n,
+  pending: 0n,
+  claimedToday: 0n,
+  runsToday: 0,
+  lastRunEnd: 0,
+  emissionReserve: DEFAULTS.emissionReserve,
+  initialReserve: DEFAULTS.initialReserve,
+  paused: false,
+  busy: false,
+  account: null,               // the account whose run is live on-chain
+  runStartedAt: 0,
+  runEndsAt: 0,
+  runStake: 0n,
+  runSettled: true,
+
+  get live(){ return this.mode === "earn" && Chain.account !== null &&
+                     addrOk(CONFIG.vaultAddress) && addrOk(CONFIG.tokenAddress); },
+  get entryFeeRaw(){ return this.config.entryFee * SCALE; },
+  get dailyLeft(){
+    const left = this.config.dailyCap * SCALE - this.claimedToday;
+    return left > 0n ? left : 0n;
+  },
+
+  /* Config values are HUMAN coin counts (entryFee, dailyCap, ...) EXCEPT the
+     three reserve figures, which are RAW base units — matching exactly what
+     eth_call returns on-chain. Mixing the two silently corrupts arithmetic. */
+  practiceConfig(){
+    return {
+      ...DEFAULTS,
+      emissionReserve: DEFAULTS.emissionReserve * SCALE,
+      initialReserve:  DEFAULTS.initialReserve  * SCALE,
+      reserveFloor:    DEFAULTS.reserveFloor    * SCALE
+    };
+  },
+
+  /* ---- practice ledger: mirrors the vault arithmetic exactly ---- */
+  loadPractice(){
+    let s = null;
+    try{ s = JSON.parse(localStorage.getItem(PR_KEY) || "null"); }catch{ s = null; }
+    const today = Math.floor(Date.now()/86400000);
+
+    if(!s || typeof s.balance !== "string"){
+      // Fresh practice wallet. An empty object parses fine, so the absence of a
+      // stored balance string is the real "never initialised" signal.
+      this.balance         = 25_000n * SCALE;
+      this.pending         = 0n;
+      this.claimedToday    = 0n;
+      this.runsToday       = 0;
+      this.lastRunEnd      = 0;
+      this.emissionReserve = DEFAULTS.emissionReserve * SCALE;
+      this.config          = this.practiceConfig();
+      this.savePractice();
+      return;
+    }
+    if(s.day !== today){ s.claimedToday = "0"; s.runsToday = 0; s.day = today; }
+    this.balance         = BigInt(s.balance || "0");
+    this.pending         = BigInt(s.pending || "0");
+    this.claimedToday    = BigInt(s.claimedToday || "0");
+    this.runsToday       = s.runsToday || 0;
+    this.lastRunEnd      = s.lastRunEnd || 0;
+    this.emissionReserve = BigInt(s.emissionReserve || (DEFAULTS.emissionReserve*SCALE).toString());
+    this.config          = this.practiceConfig();
+    this.savePractice();
+  },
+  savePractice(){
+    localStorage.setItem(PR_KEY, JSON.stringify({
+      balance: this.balance.toString(), pending: this.pending.toString(),
+      claimedToday: this.claimedToday.toString(), runsToday: this.runsToday,
+      lastRunEnd: this.lastRunEnd, day: Math.floor(Date.now()/86400000),
+      emissionReserve: this.emissionReserve.toString()
+    }));
+  },
+  resetPractice(){
+    localStorage.removeItem(PR_KEY);
+    this.balance = 25_000n * SCALE; this.pending = 0n; this.claimedToday = 0n;
+    this.runsToday = 0; this.lastRunEnd = 0;
+    this.emissionReserve = DEFAULTS.emissionReserve * SCALE;
+    this.config = this.practiceConfig();
+    this.savePractice();
+  },
+
+  /* ---- live reads ---- */
+  async refresh(){
+    if(this.live){
+      const V = CONFIG.vaultAddress, T = CONFIG.tokenAddress, me = Chain.account;
+      const [fee,min,max,rate,maxR,cap,cd,sw,mrd,ssr,emis,init,floor,bal,pend,ctd,rt,lre,paused] =
+        await Promise.all([
+          Chain.callUint(V,"0x"+W.entryFee),
+          Chain.callUint(V,"0x"+W.minRunDuration),
+          Chain.callUint(V,"0x"+W.maxRunDuration),
+          Chain.callUint(V,"0x"+W.rewardRatePerSecond),
+          Chain.callUint(V,"0x"+W.maxRunReward),
+          Chain.callUint(V,"0x"+W.dailyCap),
+          Chain.callUint(V,"0x"+W.cooldown),
+          Chain.callUint(V,"0x"+W.settleWindow),
+          Chain.callUint(V,"0x"+W.maxRunsPerDay),
+          Chain.callUint(V,"0x"+W.survivalStakeReturnBps),
+          Chain.callUint(V,"0x"+W.emissionReserve),
+          Chain.callUint(V,"0x"+W.initialReserve),
+          Chain.callUint(V,"0x"+W.reserveFloor),
+          Chain.callUint(T,"0x"+W.balanceOf+ABI.addr(me)),
+          Chain.callUint(V,"0x"+W.pendingPayout+ABI.addr(me)),
+          Chain.callUint(V,"0x"+W.claimedToday+ABI.addr(me)),
+          Chain.callUint(V,"0x"+W.runsToday+ABI.addr(me)),
+          Chain.callUint(V,"0x"+W.lastRunEnd+ABI.addr(me)),
+          Chain.call(V,"0x"+W.paused).then(decodeBool)
+        ]);
+      this.config = {
+        entryFee: fee/SCALE, minRunDuration:Number(min), maxRunDuration:Number(max),
+        rewardRatePerSecond: rate/SCALE, maxRunReward: maxR/SCALE, dailyCap: cap/SCALE,
+        cooldown:Number(cd), settleWindow:Number(sw), maxRunsPerDay:Number(mrd),
+        survivalStakeReturnBps: ssr, emissionReserve:emis, initialReserve:init, reserveFloor:floor
+      };
+      this.balance = bal; this.pending = pend; this.claimedToday = ctd;
+      this.runsToday = Number(rt); this.lastRunEnd = Number(lre)/1000;
+      this.emissionReserve = emis; this.initialReserve = init; this.paused = paused;
+
+      // Guard against pointing at the wrong contract entirely.
+      const dec = await Chain.callUint(T,"0x"+W.decimals);
+      if(dec !== BigInt(DECIMALS))
+        throw new Error("Token at "+short(T)+" reports "+dec+" decimals, expected "+
+                        DECIMALS+". This is probably not the BACK token.");
+      this.decimalsOK = true;
+    }else{
+      // Practice: config falls back to the shipped defaults, but the ledger
+      // (balance, pending, claimedToday, emissionReserve) is authoritative and
+      // must never be overwritten here or the drain would reset on every repaint.
+      this.config = this.practiceConfig();
+      this.paused = false;
+    }
+  },
+
+  allowance(){
+    if(!this.live) return this.balance;
+    return Chain.callUint(CONFIG.tokenAddress,
+      "0x"+W.allowance+ABI.addr(Chain.account)+ABI.addr(CONFIG.vaultAddress));
+  },
+
+  /* ---- live-run persistence. The chain keeps the run; this keeps the UI
+         honest across a reload so we never lose track of an open stake. ---- */
+  saveRun(){
+    try{
+      localStorage.setItem("backrooms.run.v1", JSON.stringify({
+        mode:this.mode, account:this.account,
+        startedAt:this.runStartedAt, endsAt:this.runEndsAt,
+        stake:this.runStake.toString(), settled:this.runSettled
+      }));
+    }catch{}
+  },
+  loadRun(){
+    try{
+      const r=JSON.parse(localStorage.getItem("backrooms.run.v1")||"null");
+      if(!r) return null;
+      return { mode:r.mode, account:r.account, startedAt:r.startedAt,
+               endsAt:r.endsAt, stake:BigInt(r.stake||"0"), settled:!!r.settled };
+    }catch{ return null; }
+  },
+  clearRun(){ try{ localStorage.removeItem("backrooms.run.v1"); }catch{} },
+
+  /* An unsettled run whose settle window has closed has already lost its
+     reward. Release the stake through the permissionless path, otherwise
+     enterRun() reverts RunAlreadyLive forever. */
+  async recoverStale(){
+    const r = this.loadRun();
+    if(!r || r.settled || r.mode!=="earn") return false;
+    if(this.chainAccount !== r.account) return false;     // different wallet, not ours to touch
+    const nowSec = Math.floor(Date.now()/1000);
+    if(nowSec <= r.endsAt + this.config.settleWindow) return false;   // still settleable
+    try{
+      await Chain.sendTx(CONFIG.vaultAddress,
+        "0x"+W.abandonRunFor+ABI.addr(r.account));
+      toast("Released the stake from an expired run","ok");
+      this.runSettled = true;
+      this.clearRun();
+      return true;
+    }catch(e){ return false; }
+  },
+
+  /* ---- entry ---- */
+  async enter(durationSec){
+    const c = this.config;
+    const nowSec = Math.floor(Date.now()/1000);
+    if(this.mode === "earn"){
+      if(!this.live) throw new Error("Configure a contract and connect a wallet first.");
+      this.chainAccount = Chain.account;
+      await this.recoverStale();
+      if(this.paused) throw new Error("Vault is paused.");
+      if(this.emissionReserve <= c.reserveFloor)
+        throw new Error("Emission reserve exhausted — no new runs until the vault is refunded.");
+      if(this.balance < this.entryFeeRaw)
+        throw new Error("Not enough BACK for the " + fmtShort(this.entryFeeRaw) + " entry fee. Press B to buy.");
+      if(this.runsToday >= c.maxRunsPerDay)
+        throw new Error("Daily run limit reached (" + c.maxRunsPerDay + "). Resets 00:00 UTC.");
+      if(this.lastRunEnd && nowSec < this.lastRunEnd + c.cooldown)
+        throw new Error("Cooldown — " + (this.lastRunEnd + c.cooldown - nowSec) + "s remaining.");
+
+      const alw = await this.allowance();
+      if(alw < this.entryFeeRaw){
+        toast("Approve BACK spending once, then entry is instant.");
+        await this.sendApprove();
+      }
+      const seed = new Uint8Array(32);
+      crypto.getRandomValues(seed);
+      const commit = toHex(keccak256(seed));
+      const data = "0x"+W.enterRun+ABI.b32(commit)+ABI.u32(durationSec);
+      const h = await Chain.sendTx(CONFIG.vaultAddress, data);
+      this.account = Chain.account;
+      this.runStartedAt = nowSec;
+      this.runEndsAt = nowSec + durationSec;
+      this.runStake = this.entryFeeRaw;
+      this.runSettled = false;
+      this.saveRun();
+      toast("Run entered · stake " + fmtShort(this.entryFeeRaw) + " BACK escrowed", "ok");
+      return h;
+    }
+
+    /* practice — same checks, same arithmetic */
+    if(this.emissionReserve <= c.reserveFloor) throw new Error("Practice emission reserve exhausted. Menu → reset practice.");
+    if(this.balance < this.entryFeeRaw) throw new Error("Not enough practice BACK for the entry fee.");
+    if(this.runsToday >= c.maxRunsPerDay) throw new Error("Daily run limit reached.");
+    if(this.lastRunEnd && nowSec < this.lastRunEnd + c.cooldown)
+      throw new Error("Cooldown — " + (this.lastRunEnd + c.cooldown - nowSec) + "s remaining.");
+    this.balance -= this.entryFeeRaw;
+    // Provisional upper bound; settle/abandon rewrites it to the real end time.
+    this.runsToday++; this.lastRunEnd = nowSec + durationSec;
+    this.account = "practice"; this.runStartedAt = nowSec;
+    this.runEndsAt = nowSec + durationSec; this.runStake = this.entryFeeRaw;
+    this.runSettled = false;
+    this.savePractice();
+    this.saveRun();
+    return "practice";
+  },
+
+  async sendApprove(){
+    const data = "0x"+W.approve+ABI.addr(CONFIG.vaultAddress)+ABI.u256(this.entryFeeRaw);
+    await Chain.sendTx(CONFIG.tokenAddress, data);
+  },
+
+  /* ---- settlement. Mirrors contract.md §5.2 check order exactly. ---- */
+  async settle(coins, died){
+    const c = this.config;
+    coins = Math.max(0, Math.floor(coins));
+
+    const nowSec = Math.floor(Date.now()/1000);
+    const startedAt = this.runStartedAt, endsAt = this.runEndsAt;
+    const elapsed = Math.max(1, nowSec - startedAt);
+
+    if(this.mode === "earn"){
+      const minReady = startedAt + c.minRunDuration;
+      if(nowSec < minReady)
+        throw new Error("Too early — " + (minReady - nowSec) + "s until this run can settle (vault time lock).");
+      if(nowSec > endsAt + c.settleWindow)
+        throw new Error("Settle window closed. Stake is reclaimable via abandonRun.");
+      if(coins > c.maxRunReward)
+        throw new Error("Rejected by the vault: above maxRunReward.");
+      const allowed = c.rewardRatePerSecond * BigInt(elapsed);
+      if(BigInt(coins) > allowed)
+        throw new Error("Rejected by the vault: above rate × elapsed for this run.");
+      if(this.claimedToday + BigInt(coins) * SCALE > c.dailyCap * SCALE)
+        throw new Error("Rejected by the vault: daily cap reached.");
+
+      const data = "0x"+W.settleRun+ABI.u256(coins)+ABI.bool(died);
+      const h = await Chain.sendTx(CONFIG.vaultAddress, data);
+      this.runSettled = true;
+      this.runStartedAt = 0; this.runEndsAt = 0;
+      this.clearRun();
+      toast("Settling " + fmtShort(BigInt(coins)*SCALE) + " BACK — claim after it confirms", "ok");
+      return h;
+    }
+
+    /* practice — mirror checks 2 and 3 of contract.md §5.2 exactly */
+    if(startedAt === 0) throw new Error("No run is open. Enter a run first.");
+    if(this.runSettled) throw new Error("This run is already settled. Enter a new run first.");
+
+    const minReady = startedAt + c.minRunDuration;
+    if(nowSec < minReady) throw new Error("Too early — " + (minReady - nowSec) + "s until settle.");
+    if(nowSec > endsAt + c.settleWindow) throw new Error("Settle window closed.");
+    if(BigInt(coins) > c.maxRunReward) throw new Error("Above maxRunReward.");
+    if(BigInt(coins) > c.rewardRatePerSecond * BigInt(elapsed))
+      throw new Error("Above rate × elapsed for this run.");
+    if(this.claimedToday + BigInt(coins) * SCALE > c.dailyCap * SCALE)
+      throw new Error("Daily cap reached.");
+
+    const reward = BigInt(coins) * SCALE;
+    if(this.emissionReserve < reward)
+      throw new Error("Emission reserve is short: need "+fmtShort(reward)+
+                      ", have "+fmtShort(this.emissionReserve)+" BACK.");
+    const returned = died ? 0n : this.runStake * c.survivalStakeReturnBps / 10_000n;
+    this.emissionReserve -= reward;
+    this.claimedToday    += reward;
+    this.pending        += reward + returned;
+    // Cooldown restarts at settlement, NOT at the scheduled endsAt — otherwise
+    // dying 60s into a 3600s run locks the player out for a full hour.
+    this.lastRunEnd   = nowSec;
+    this.runSettled = true; this.runStartedAt = 0; this.runEndsAt = 0;
+    this.savePractice(); this.clearRun();
+    Snd.settled();
+    toast(died
+      ? "Run lost. Stake slashed. 0 BACK banked."
+      : "Run banked " + fmtShort(reward) + " BACK — press C to claim", "ok");
+    return "practice";
+  },
+
+  async claim(){
+    if(this.pending <= 0n) throw new Error("Nothing claimable.");
+    if(this.mode === "earn"){
+      const h = await Chain.sendTx(CONFIG.vaultAddress, "0x"+W.claimAll);
+      toast("Claiming — will arrive after confirmation", "ok");
+      return h;
+    }
+    const amt = this.pending;
+    this.balance += amt; this.pending = 0n;
+    this.savePractice();
+    Snd.claimed();
+    toast("Claimed " + fmtShort(amt) + " BACK", "ok");
+    return "practice";
+  },
+
+  async buy(backAmountRaw, ethValue){
+    if(!this.live) throw new Error("Practice mode: BACK is free. Configure a contract to buy for real.");
+    if(backAmountRaw <= 0n) throw new Error("Enter an amount.");
+    const data = "0x"+W.buy+ABI.u256(backAmountRaw);
+    const h = await Chain.sendTx(CONFIG.tokenAddress, data, ethValue);
+    toast("Buying " + fmtShort(backAmountRaw) + " BACK", "ok");
+    return h;
+  },
+
+  async quoteBuy(backAmountRaw){
+    if(!this.live) return { cost:0n, tax:0n };
+    const r = await Chain.call(CONFIG.tokenAddress,
+      "0x"+W.quoteBuy+ABI.u256(backAmountRaw));
+    const h = r.replace(/^0x/,"");
+    return { cost: decodeUint("0x"+h.slice(0,64)), tax: decodeUint("0x"+h.slice(64,128)) };
+  }
+};
+
+/* ==========================================================================
+   5. Deterministic noise + PRNG
+   ========================================================================== */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hash2(x,y,seed){
+  let h = x*374761393 + y*668265263 + seed*1274126177;
+  h = (h ^ (h >>> 13)) >>> 0;
+  h = Math.imul(h, 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+function vnoise(x,y,seed){
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x-xi, yf = y-yi;
+  const u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+  const a = hash2(xi,yi,seed),   b = hash2(xi+1,yi,seed);
+  const c = hash2(xi,yi+1,seed), d = hash2(xi+1,yi+1,seed);
+  return (a*(1-u)+b*u)*(1-v) + (c*(1-u)+d*u)*v;
+}
+function fbm(x,y,seed,oct){
+  let v=0,amp=0.5,f=1;
+  for(let i=0;i<(oct||4);i++){ v += amp*vnoise(x*f,y*f,seed+i*97); amp*=0.5; f*=2; }
+  return v;
+}
+
+/* ==========================================================================
+   6. Procedural texture atlas — no files, no fetches
+   ========================================================================== */
+const TEX = 256, HALF = TEX/2;
+function cv(w,h){ const c=document.createElement("canvas"); c.width=w; c.height=h; return c; }
+
+/* Per-pixel grain inside an explicit rect. The rect matters: the wall atlas is
+   512x512, and reading a 256x256 window out of it let grime bleed across
+   quadrants and crush an entire material to black. */
+function grain(g,x,y,w,h,seed,amount){
+  const img=g.getImageData(x,y,w,h), d=img.data, r=mulberry32(seed);
+  for(let i=0;i<d.length;i+=4){
+    const n=(r()-0.5)*amount;
+    d[i]  =clamp(d[i]  +n,0,255);
+    d[i+1]=clamp(d[i+1]+n,0,255);
+    d[i+2]=clamp(d[i+2]+n,0,255);
+  }
+  g.putImageData(img,x,y);
+}
+/* strength 0..1 = how far the stain colour takes over. Pass 0 for no effect. */
+function stain(g,x,y,w,h,seed,scale,strength,color){
+  if(strength<=0) return;
+  const img=g.getImageData(x,y,w,h), d=img.data;
+  for(let yy=0;yy<h;yy++) for(let xx=0;xx<w;xx++){
+    const i=(yy*w+xx)*4;
+    const n=fbm(xx/scale, yy/scale, seed, 4);
+    const m=clamp((n-0.5)*2.6 + strength, 0, 1)*strength;
+    d[i]  =d[i]  *(1-m) + color[0]*m;
+    d[i+1]=d[i+1]*(1-m) + color[1]*m;
+    d[i+2]=d[i+2]*(1-m) + color[2]*m;
+  }
+  g.putImageData(img,x,y);
+}
+function blobs(g,x,y,w,h,n,seed,rmin,rmax,color,alpha){
+  const r=mulberry32(seed);
+  for(let i=0;i<n;i++){
+    const px=x+r()*w, py=y+r()*h, rad=rmin+r()*(rmax-rmin);
+    const rg=g.createRadialGradient(px,py,0,px,py,rad);
+    rg.addColorStop(0,"rgba("+color+","+alpha+")");
+    rg.addColorStop(1,"rgba("+color+",0)");
+    g.fillStyle=rg; g.beginPath(); g.arc(px,py,rad,0,7); g.fill();
+  }
+}
+
+const ATLAS = { wall:null, floor:null, ceil:null, coin:null, fig:null, shadow:null };
+
+function buildTextures(){
+  /* ---- wall atlas, 2x2 ---- */
+  const wc=cv(TEX*2,TEX*2), w=wc.getContext("2d");
+  const T0=0, T1=TEX, T2=TEX*2;
+
+  // (0,0) yellow wallpaper - the signature material, so most walls use it
+  w.fillStyle="#c9b458"; w.fillRect(T0,T0,TEX,TEX);
+  for(let x=T0;x<T1;x+=16){
+    w.fillStyle="rgba(0,0,0,.045)";     w.fillRect(x,T0,7,TEX);
+    w.fillStyle="rgba(255,255,255,.04)"; w.fillRect(x+8,T0,7,TEX);
+  }
+  grain(w,T0,T0,TEX,TEX,11,22);
+  stain(w,T0,T0,TEX,TEX,3,46,0.42,[124,100,46]);
+  blobs(w,T0,T0,TEX,TEX,10,7,10,34,"104,78,32",0.34);
+  w.fillStyle="rgba(84,66,26,.55)"; w.fillRect(T0,T1-20,TEX,20);
+  w.fillStyle="rgba(0,0,0,.22)";    w.fillRect(T0,T1-20,TEX,3);
+
+  // (1,0) damp concrete
+  w.fillStyle="#6f6e63"; w.fillRect(T1,T0,TEX,TEX);
+  grain(w,T1,T0,TEX,TEX,21,30);
+  stain(w,T1,T0,TEX,TEX,7,60,0.34,[74,72,64]);
+  w.strokeStyle="rgba(34,34,30,.5)";
+  for(let i=0;i<14;i++){
+    w.lineWidth=0.6+Math.random()*1.3;
+    w.beginPath();
+    let x=T1+Math.random()*TEX, y=T0+Math.random()*TEX;
+    w.moveTo(x,y);
+    for(let k=0;k<7;k++){ x+=(Math.random()-0.5)*60; y+=(Math.random()-0.5)*60; w.lineTo(x,y); }
+    w.stroke();
+  }
+
+  // (0,1) hotel wall - cream above, wainscot below
+  w.fillStyle="#c8bda2"; w.fillRect(T0,T1,TEX,TEX);
+  w.fillStyle="#b3a68a"; w.fillRect(T0,T1+TEX*0.62,TEX,TEX*0.38);
+  w.fillStyle="rgba(70,58,38,.5)"; w.fillRect(T0,T1+TEX*0.62-3,TEX,3);
+  w.strokeStyle="rgba(90,76,50,.22)"; w.lineWidth=1;
+  for(let x=18;x<TEX;x+=42){ w.beginPath(); w.moveTo(T0+x,T1); w.lineTo(T0+x,T1+TEX*0.62); w.stroke(); }
+  grain(w,T0,T1,TEX,TEX,31,16);
+  stain(w,T0,T1,TEX,TEX,13,58,0.36,[114,100,68]);
+
+  // (1,1) institutional tile
+  w.fillStyle="#9aa0a0"; w.fillRect(T1,T1,TEX,TEX);
+  for(let y=T1;y<T2;y+=64) for(let x=T1;x<T2;x+=64){
+    w.fillStyle=(((x-T1)/64+(y-T1)/64)%2)?"#a5abab":"#8f9595";
+    w.fillRect(x+1,y+1,62,62);
+  }
+  w.strokeStyle="rgba(50,54,54,.5)"; w.lineWidth=2;
+  for(let y=T1;y<=T2;y+=64){ w.beginPath(); w.moveTo(T1,y); w.lineTo(T2,y); w.stroke(); }
+  for(let x=T1;x<=T2;x+=64){ w.beginPath(); w.moveTo(x,T1); w.lineTo(x,T2); w.stroke(); }
+  grain(w,T1,T1,TEX,TEX,41,11);
+
+  ATLAS.wall = wc;
+
+  /* ---- damp mono carpet ---- */
+  const fc=cv(TEX,TEX), f=fc.getContext("2d");
+  f.fillStyle="#8a7a5c"; f.fillRect(0,0,TEX,TEX);
+  grain(f,0,0,TEX,TEX,5,62);
+  // carpet pile: short directional flecks keep it from reading as a smear
+  const fr=mulberry32(77);
+  for(let i=0;i<5200;i++){
+    const v=Math.floor(fr()*58);
+    f.fillStyle="rgba("+(68+v)+","+(60+v)+","+(45+v)+",.5)";
+    f.fillRect(fr()*TEX, fr()*TEX, 2, 1);
+  }
+  stain(f,0,0,TEX,TEX,9,15,0.40,[58,51,35]);
+  blobs(f,0,0,TEX,TEX,18,13,6,20,"44,39,26",0.26);
+  ATLAS.floor = fc;
+
+  /* ---- acoustic ceiling with a fluorescent diffuser ---- */
+  const cc=cv(TEX,TEX), c2=cc.getContext("2d");
+  c2.fillStyle="#8e8c82"; c2.fillRect(0,0,TEX,TEX);
+  for(let y=0;y<TEX;y+=64) for(let x=0;x<TEX;x+=64){
+    c2.fillStyle="#bdbbae"; c2.fillRect(x+3,y+3,58,58);
+    c2.strokeStyle="rgba(38,38,34,.72)"; c2.lineWidth=2.5; c2.strokeRect(x+3,y+3,58,58);
+  }
+  for(let y=10;y<TEX;y+=7) for(let x=10;x<TEX;x+=7){
+    c2.fillStyle="rgba(46,46,42,.5)"; c2.fillRect(x,y,2,2);
+  }
+  grain(c2,0,0,TEX,TEX,17,22);
+  stain(c2,0,0,TEX,TEX,23,48,0.42,[104,98,80]);
+  const lg=c2.createLinearGradient(0,TEX*0.30,0,TEX*0.70);
+  lg.addColorStop(0,"#efe9c8"); lg.addColorStop(0.5,"#fffce8"); lg.addColorStop(1,"#ded8b4");
+  c2.fillStyle=lg; c2.fillRect(TEX*0.26,TEX*0.32,TEX*0.48,TEX*0.36);
+  c2.strokeStyle="rgba(90,88,70,.65)"; c2.lineWidth=3;
+  c2.strokeRect(TEX*0.26,TEX*0.32,TEX*0.48,TEX*0.36);
+  ATLAS.ceil = cc;
+
+  /* ---- coin sprite ---- */
+  const nc=cv(128,128), n=nc.getContext("2d");
+  const rg=n.createRadialGradient(52,44,4,64,64,58);
+  rg.addColorStop(0,"#fff3b0"); rg.addColorStop(0.45,"#ffc93c");
+  rg.addColorStop(0.8,"#d99a10"); rg.addColorStop(1,"#8a5c05");
+  n.fillStyle=rg; n.beginPath(); n.arc(64,64,56,0,7); n.fill();
+  n.strokeStyle="rgba(90,58,4,.85)"; n.lineWidth=5;
+  n.beginPath(); n.arc(64,64,53,0,7); n.stroke();
+  n.fillStyle="rgba(255,250,210,.6)";
+  n.beginPath(); n.ellipse(46,42,17,11,-0.6,0,7); n.fill();
+  n.strokeStyle="rgba(120,78,6,.55)"; n.lineWidth=4;
+  n.beginPath(); n.moveTo(64,28); n.lineTo(64,100); n.stroke();
+  n.beginPath(); n.moveTo(44,50); n.lineTo(84,50); n.stroke();
+  ATLAS.coin = nc;
+
+  /* ---- wanderer silhouette: a dark humanoid, not a gold ball ---- */
+  const gc=cv(128,128), gg=gc.getContext("2d");
+  gg.clearRect(0,0,128,128);
+  gg.fillStyle="#151210";
+  gg.beginPath(); gg.ellipse(64,30,15,17,0,0,7); gg.fill();          // head
+  gg.beginPath();
+  gg.moveTo(64,44); gg.lineTo(86,58); gg.lineTo(92,104); gg.lineTo(70,104);
+  gg.lineTo(64,78); gg.lineTo(58,104); gg.lineTo(36,104); gg.lineTo(42,58);
+  gg.closePath(); gg.fill();                                        // torso + limbs
+  gg.strokeStyle="#151210"; gg.lineWidth=7; gg.lineCap="round";
+  gg.beginPath(); gg.moveTo(46,60); gg.lineTo(28,92); gg.stroke();   // arms
+  gg.beginPath(); gg.moveTo(82,60); gg.lineTo(100,92); gg.stroke();
+  // rim light so it separates from the dark background
+  gg.strokeStyle="rgba(196,150,96,.5)"; gg.lineWidth=2.4;
+  gg.beginPath(); gg.ellipse(64,30,15,17,0,-2.2,0.5); gg.stroke();
+  gg.beginPath(); gg.moveTo(64,44); gg.lineTo(86,58); gg.stroke();
+  // two dim eye slits
+  gg.fillStyle="rgba(255,150,110,.85)";
+  gg.fillRect(57,28,5,3); gg.fillRect(66,28,5,3);
+  ATLAS.fig = gc;
+
+  /* ---- soft radial blob used as a contact shadow ---- */
+  const sc=cv(64,64), sg=sc.getContext("2d");
+  const sgr=sg.createRadialGradient(32,32,1,32,32,31);
+  sgr.addColorStop(0,"rgba(0,0,0,.85)");
+  sgr.addColorStop(0.55,"rgba(0,0,0,.42)");
+  sgr.addColorStop(1,"rgba(0,0,0,0)");
+  sg.fillStyle=sgr; sg.fillRect(0,0,64,64);
+  ATLAS.shadow = sc;
+}
+
+/* ==========================================================================
+   7. Level generation — BSP rooms + corridors, plus a baked light field
+   ========================================================================== */
+const CELL  = 2.0;          // corridor width in world units
+const WALL_H = 1.55;        // ceiling height: 0.93 above the eye, 0.62 below
+const EYE_H  = 0.62;
+
+const Level = {
+  w:0, h:0, grid:null, seed:0, rnd:null,
+  coins:[], lights:[], lightField:null, biome:"offices",
+  entities:[], player:{ x:CELL*1.5, z:CELL*1.5, yaw:0, pitch:0 },
+  spawnCell:null,
+
+  isWall(cx,cy){
+    if(cx<0||cy<0||cx>=this.w||cy>=this.h) return true;
+    return this.grid[cy*this.w+cx] === 1;
+  },
+  isWallAt(wx,wz){ return this.isWall(Math.floor(wx/CELL), Math.floor(wz/CELL)); },
+
+  gen(seed){
+    this.seed = seed>>>0;
+    this.rnd = mulberry32(this.seed);
+    const W = 46, H = 46;
+    this.w = W; this.h = H;
+    this.grid = new Uint8Array(W*H).fill(1);
+
+    // BSP. Arrow function so `this` stays bound to Level through recursion —
+    // a `function` declaration would lose it under "use strict".
+    const leaves = [];
+    const split = (x,y,w,h,d) => {
+      if(d<=0 || (w<11 && h<11) || this.rnd()<0.18){
+        leaves.push({x,y,w,h}); return;
+      }
+      const horiz = w < h ? true : (h < w ? false : this.rnd()<0.5);
+      if(horiz){
+        if(h<14){ leaves.push({x,y,w,h}); return; }
+        const cut = 5+Math.floor(this.rnd()*(h-10));
+        split(x,y,w,cut,d-1); split(x,y+cut,w,h-cut,d-1);
+      }else{
+        if(w<14){ leaves.push({x,y,w,h}); return; }
+        const cut = 5+Math.floor(this.rnd()*(w-10));
+        split(x,y,cut,h,d-1); split(x+cut,y,w-cut,h,d-1);
+      }
+    };
+    split(1,1,W-2,H-2,5);
+
+    // carve a room in each leaf
+    const rooms = [];
+    for(const L of leaves){
+      const rw = Math.max(3, Math.floor(L.w*(0.55+this.rnd()*0.3)));
+      const rh = Math.max(3, Math.floor(L.h*(0.55+this.rnd()*0.3)));
+      const rx = L.x + Math.floor(this.rnd()*Math.max(1,L.w-rw));
+      const ry = L.y + Math.floor(this.rnd()*Math.max(1,L.h-rh));
+      for(let y=ry;y<ry+rh;y++) for(let x=rx;x<rx+rw;x++) this.grid[y*W+x]=0;
+      rooms.push({x:rx,y:ry,w:rw,h:rh,
+                  cx:Math.floor(rx+rw/2), cy:Math.floor(ry+rh/2)});
+    }
+
+    // connect rooms in MST order + a few extra loops
+    const linked = [0];
+    const rest = rooms.map((_,i)=>i).slice(1);
+    while(rest.length){
+      let bi=0,bj=1,bd=Infinity;
+      for(const a of linked) for(const b of rest){
+        const dx=rooms[a].cx-rooms[b].cx, dy=rooms[a].cy-rooms[b].cy;
+        const d=dx*dx+dy*dy;
+        if(d<bd){ bd=d; bi=a; bj=b; }
+      }
+      this.corridor(rooms[bi].cx, rooms[bi].cy, rooms[bj].cx, rooms[bj].cy);
+      linked.push(bj); rest.splice(rest.indexOf(bj),1);
+    }
+    for(let k=0;k<Math.floor(rooms.length*0.7);k++){
+      const a=rooms[Math.floor(this.rnd()*rooms.length)];
+      const b=rooms[Math.floor(this.rnd()*rooms.length)];
+      this.corridor(a.cx,a.cy,b.cx,b.cy);
+    }
+
+    this.biome = ["offices","hotel","service","stockroom"][Math.floor(this.rnd()*4)];
+
+    // Pick the spawn, then seal off any pocket the corridors failed to connect,
+    // so nothing (coins, lights, entities) is ever placed somewhere unreachable.
+    let firstOpen=null;
+    for(let y=1;y<H-1 && !firstOpen;y++) for(let x=1;x<W-1;x++)
+      if(!this.isWall(x,y)){ firstOpen=[x,y]; break; }
+    this.spawnCell = {x:firstOpen[0], y:firstOpen[1]};
+    this.pruneUnreachable();
+
+    // ceiling lights, one per ~5x5 cells of open floor
+    this.lights = [];
+    for(let y=2;y<H-2;y+=5) for(let x=2;x<W-2;x+=5){
+      if(this.isWall(x,y)) continue;
+      this.lights.push({ x:(x+0.5)*CELL, z:(y+0.5)*CELL, r:6.5,
+                         f:0.82+this.rnd()*0.18, flick:this.rnd()<0.06 ? 0.4+this.rnd()*1.6 : 0 });
+    }
+
+    // baked light field via multi-source BFS over open cells
+    this.bakeLight();
+
+    // coins on open cells
+    this.coins = [];
+    let open = [];
+    for(let y=1;y<H-1;y++) for(let x=1;x<W-1;x++) if(!this.isWall(x,y)) open.push([x,y]);
+    const density = 1/26;
+    for(const [x,y] of open){
+      if(this.rnd() < density) this.coins.push({
+        cx:x, cy:y,
+        x:(x+0.5)*CELL + (this.rnd()-0.5)*0.5,
+        z:(y+0.5)*CELL + (this.rnd()-0.5)*0.5,
+        phase:this.rnd()*7, taken:false
+      });
+    }
+
+    // entities
+    this.entities = [];
+    const nE = Math.min(18, Math.max(5, Math.floor(open.length/420)));
+    for(let i=0;i<nE;i++){
+      const [x,y] = open[Math.floor(this.rnd()*open.length)];
+      this.entities.push({
+        x:(x+0.5)*CELL, z:(y+0.5)*CELL, vx:0, vz:0,
+        dir:this.rnd()*7, spd:0.55+this.rnd()*0.55,
+        state:"wander", alert:0, bob:this.rnd()*7, seed:(this.rnd()*1e9)|0
+      });
+    }
+
+    // spawn stays where pruneUnreachable anchored it, so the flood fill that
+    // sealed the pockets and the point the player actually starts agree
+    this.player.x = (this.spawnCell.x+0.5)*CELL;
+    this.player.z = (this.spawnCell.y+0.5)*CELL;
+    this.player.yaw = this.rnd()*7;
+    this.player.pitch = 0;
+  },
+
+  corridor(x0,y0,x1,y1){
+    const W=this.w;
+    let x=x0,y=y0;
+    while(x!==x1){ x += Math.sign(x1-x); this.grid[y*W+x]=0; }
+    while(y!==y1){ y += Math.sign(y1-y); this.grid[y*W+x]=0; }
+    const jitter = Math.floor(this.rnd()*4);
+    for(let i=0;i<jitter;i++){
+      const ax=x0+Math.floor(this.rnd()*(Math.abs(x1-x0)+1));
+      const ay=y0+Math.floor(this.rnd()*(Math.abs(y1-y0)+1));
+      const len=2+Math.floor(this.rnd()*4);
+      for(let k=0;k<len;k++){
+        const px=ax+(this.rnd()<0.5?k:0), py=ay+(this.rnd()<0.5?0:k);
+        if(px>0&&py>0&&px<W-1&&py<this.h-1) this.grid[py*W+px]=0;
+      }
+    }
+  },
+
+  /* The corridor jitter can carve pockets sealed off from the rest of the map.
+     Those pockets would hold coins the player can never reach, so seal them
+     back up: flood from spawn and turn anything unreached into wall. */
+  pruneUnreachable(){
+    const W=this.w, H=this.h, N=W*H;
+    const seen = new Uint8Array(N);
+    const start = this.spawnCell.y*W + this.spawnCell.x;
+    const q=[start]; seen[start]=1;
+    let head=0;
+    while(head<q.length){
+      const i=q[head++], x=i%W, y=(i/W)|0;
+      const nb=[[x+1,y],[x-1,y],[x,y+1],[x,y-1]];
+      for(const [nx,ny] of nb){
+        if(nx<0||ny<0||nx>=W||ny>=H) continue;
+        const j=ny*W+nx;
+        if(seen[j] || this.grid[j]===1) continue;
+        seen[j]=1; q.push(j);
+      }
+    }
+    let sealed=0;
+    for(let i=0;i<N;i++) if(this.grid[i]===0 && !seen[i]){ this.grid[i]=1; sealed++; }
+    this.sealedCells = sealed;
+  },
+
+  /* BFS from every light; lightField = normalised brightness per cell. */
+  bakeLight(){
+    const N=this.w*this.h, BIG=1e9;
+    const dist = new Float32Array(N).fill(BIG);
+    const q = [];
+    for(const L of this.lights){
+      const cx=Math.floor(L.x/CELL), cy=Math.floor(L.z/CELL);
+      const i=cy*this.w+cx;
+      if(dist[i]>0){ dist[i]=0; q.push(i); }
+    }
+    let head=0;
+    while(head<q.length){
+      const i=q[head++], cx=i%this.w, cy=(i/this.w)|0;
+      const nb=[[cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]];
+      for(const [nx,ny] of nb){
+        if(nx<0||ny<0||nx>=this.w||ny>=this.h) continue;
+        const j=ny*this.w+nx;
+        if(this.grid[j]===1) continue;
+        if(dist[j]>dist[i]+1){ dist[j]=dist[i]+1; q.push(j); }
+      }
+    }
+    this.lightField = new Float32Array(N);
+    for(let i=0;i<N;i++){
+      const d = dist[i]===BIG ? 0 : dist[i];
+      // Gentler falloff: the previous 0.30 coefficient drove every cell more
+      // than one light-step from a fixture to near-black, making walls unreadable.
+      this.lightField[i] = 1/(1 + 0.11*d*d);
+    }
+    this.lightDist = dist;
+  },
+
+  lightAt(wx,wz){
+    const cx=clamp(Math.floor(wx/CELL),0,this.w-1);
+    const cy=clamp(Math.floor(wz/CELL),0,this.h-1);
+    return this.lightField[cy*this.w+cx];
+  },
+
+  wallTypeAt(wx,wz){
+    const cx=clamp(Math.floor(wx/CELL),0,this.w-1);
+    const cy=clamp(Math.floor(wz/CELL),0,this.h-1);
+    const i=cy*this.w+cx;
+    const g=this.grid[i];
+    if(g===1){
+      const n=(i%this.w), nn=n%5;
+      return nn<2 ? 0 : nn<3 ? 1 : nn<4 ? 2 : 3;
+    }
+    return 0;
+  },
+
+  collides(x,z,r){
+    if(this.isWallAt(x-r,z-r)||this.isWallAt(x+r,z-r)||
+       this.isWallAt(x-r,z+r)||this.isWallAt(x+r,z+r)) return true;
+    return this.isWallAt(x,z);
+  },
+
+  lineOfSight(ax,az,bx,bz){
+    const d=Math.hypot(bx-ax,bz-az), steps=Math.ceil(d/(CELL*0.25));
+    for(let i=1;i<steps;i++){
+      const t=i/steps;
+      if(this.isWallAt(ax+(bx-ax)*t, az+(bz-az)*t)) return false;
+    }
+    return true;
+  }
+};
+
+/* ==========================================================================
+   8. WebGL renderer
+   ========================================================================== */
+const cvGL = $("c");
+const GL = { gl:null, progs:{}, buf:{}, tex:{}, ok:false,
+              W:1, H:1, dpr:1, fogNear:4.5, fogFar:26 };
+
+const VS_SURF = `
+attribute vec2 aPos; varying vec2 vNdc;
+void main(){ vNdc=aPos; gl_Position=vec4(aPos,0.0,1.0); }`;
+
+const FS_SURF = `
+precision highp float;
+varying vec2 vNdc;
+uniform vec3 uCam,uRight,uUp,uFwd,uTint;
+uniform float uAspect,uTanHalf,uPlaneY,uPlaneSign,uTexScale,uFogNear,uFogFar;
+uniform sampler2D uTex;
+void main(){
+  vec3 rd = normalize(uFwd + uRight*(vNdc.x*uTanHalf*uAspect) + uUp*(vNdc.y*uTanHalf));
+  // Each pass owns exactly the half of the screen its plane projects onto.
+  // Painting a colour on the other half would let the second pass erase the first.
+  if(rd.y*uPlaneSign <= 0.0) discard;
+  float t = (uPlaneY - uCam.y)/rd.y;
+  if(t < 0.0) discard;
+  if(t > uFogFar){
+    gl_FragColor = vec4(vec3(0.034,0.028,0.015), 1.0);   // beyond fog
+    return;
+  }
+  vec3 hit = uCam + rd*t;
+  vec2 uv = hit.xz*uTexScale;
+  vec3 base = texture2D(uTex, uv).rgb;
+  float lf = 0.22 + 0.78*smoothstep(0.0,0.60, 1.0/(1.0 + t*t*0.030));
+  vec3 col = base*uTint*lf;
+  float f = clamp((t-uFogNear)/(uFogFar-uFogNear),0.0,1.0);
+  col = mix(col, vec3(0.021,0.019,0.009), f);
+  gl_FragColor = vec4(col,1.0);
+}`;
+
+const VS_WALL = `
+attribute vec3 aPos; attribute vec2 aUV; attribute vec3 aTint;
+uniform mat4 uMVP; uniform vec3 uEye;
+varying vec2 vUV; varying vec3 vTint; varying float vDist;
+void main(){
+  vUV = aUV; vTint = aTint;
+  vDist = length(aPos.xz - uEye.xz);
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}`;
+
+const FS_WALL = `
+precision highp float;
+varying vec2 vUV; varying vec3 vTint; varying float vDist;
+uniform sampler2D uTex; uniform float uFogNear,uFogFar;
+void main(){
+  vec3 c = texture2D(uTex,vUV).rgb*vTint;
+  float f = clamp((vDist-uFogNear)/(uFogFar-uFogNear),0.0,1.0);
+  c = mix(c, vec3(0.021,0.019,0.009), f);
+  gl_FragColor = vec4(c,1.0);
+}`;
+
+/* Sprites arrive as pre-billboarded WORLD positions (built CPU-side against the
+   camera basis), so the vertex stage is a plain transform. */
+const VS_SPR = `
+attribute vec3 aPos; attribute vec2 aUV; attribute float aGlow;
+uniform mat4 uMVP; uniform vec3 uEye;
+varying vec2 vUV; varying float vDist; varying float vGlow;
+void main(){
+  vUV = aUV; vGlow = aGlow;
+  vDist = length(aPos.xz - uEye.xz);
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}`;
+const FS_SPR = `
+precision highp float;
+varying vec2 vUV; varying float vDist; varying float vGlow;
+uniform sampler2D uTex; uniform float uFogNear,uFogFar;
+void main(){
+  vec4 t = texture2D(uTex, vUV);
+  float f = clamp((vDist-uFogNear)/(uFogFar-uFogNear),0.0,1.0);
+  if(vGlow < 0.0){
+    // flat contact shadow on the floor plane
+    gl_FragColor = vec4(0.0,0.0,0.0, t.a * 0.85 * (1.0 - f*0.7));
+    return;
+  }
+  if(t.a < 0.4) discard;
+  float alert = clamp(vGlow-1.0, 0.0, 1.0);
+  // keep the silhouette dark; the alert is a warm shift, not a flat red fill
+  vec3 lit = t.rgb * (1.0 + 0.25*alert) + vec3(0.30,0.045,0.025)*alert;
+  vec3 c = lit * (0.95 + 0.28*vGlow);
+  c = mix(c, vec3(0.030,0.027,0.012), f*0.93);
+  gl_FragColor = vec4(c, t.a);
+}`;
+
+function sh(gl,type,src){
+  const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))
+    throw new Error("shader: "+gl.getShaderInfoLog(s)+"\n"+src);
+  return s;
+}
+function prog(gl,vs,fs){
+  const p=gl.createProgram();
+  gl.attachShader(p,sh(gl,gl.VERTEX_SHADER,vs));
+  gl.attachShader(p,sh(gl,gl.FRAGMENT_SHADER,fs));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p,gl.LINK_STATUS)) throw new Error("link: "+gl.getProgramInfoLog(p));
+  const u={}, n=gl.getProgramParameter(p,gl.ACTIVE_UNIFORMS);
+  for(let i=0;i<n;i++){ const info=gl.getActiveUniform(p,i); u[info.name.replace("[0]","")]=gl.getUniformLocation(p,info.name); }
+  return {p,u};
+}
+function texFrom(gl,canvas,mip,wrap){
+  const t=gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D,t);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,true);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,canvas);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER, mip?gl.LINEAR_MIPMAP_LINEAR:gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  // Floor/ceiling are sampled with world-space UVs (values in the tens), so they
+  // MUST repeat or they clamp to one edge texel and render as a flat colour.
+  // The wall atlas must clamp, otherwise its four quadrants bleed into each other.
+  const w = (wrap===undefined) ? gl.CLAMP_TO_EDGE : wrap;
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,w);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,w);
+  if(mip) gl.generateMipmap(gl.TEXTURE_2D);
+  return t;
+}
+
+/* --- mat4 (column-major) --- */
+function persp(fovy,aspect,near,far){
+  const f=1/Math.tan(fovy/2), nf=1/(near-far);
+  return [f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0];
+}
+function viewFrom(eye,r,u,f){
+  const vz=[-f[0],-f[1],-f[2]];
+  const d=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
+  return [ r[0],u[0],vz[0],0,
+           r[1],u[1],vz[1],0,
+           r[2],u[2],vz[2],0,
+          -d(r,eye),-d(u,eye),-d(vz,eye),1 ];
+}
+function mul4(a,b){
+  const o=new Float32Array(16);
+  for(let c=0;c<4;c++) for(let rw=0;rw<4;rw++){
+    let s=0; for(let k=0;k<4;k++) s+=a[k*4+rw]*b[c*4+k];
+    o[c*4+rw]=s;
+  }
+  return o;
+}
+function norm(v){ const l=Math.hypot(v[0],v[1],v[2])||1; return [v[0]/l,v[1]/l,v[2]/l]; }
+function cross(a,b){ return [a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0]]; }
+function dot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+
+function initGL(){
+  const gl = cvGL.getContext("webgl",{antialias:false,alpha:false,depth:true,
+                                      powerPreference:"high-performance"})
+          || cvGL.getContext("experimental-webgl",{antialias:false,alpha:false,depth:true});
+  if(!gl) throw new Error("WebGL is unavailable in this browser.");
+  GL.gl = gl;
+  GL.progs.surf = prog(gl,VS_SURF,FS_SURF);
+  GL.progs.wall = prog(gl,VS_WALL,FS_WALL);
+  GL.progs.spr  = prog(gl,VS_SPR,FS_SPR);
+
+  const CLAMP = gl.CLAMP_TO_EDGE, REPEAT = gl.REPEAT;
+  GL.tex.wall  = texFrom(gl,ATLAS.wall,false,CLAMP);   // atlas: must not bleed
+  GL.tex.wallM = texFrom(gl,ATLAS.wall,true, CLAMP);
+  GL.tex.floor = texFrom(gl,ATLAS.floor,true, REPEAT); // world-space UVs
+  GL.tex.ceil  = texFrom(gl,ATLAS.ceil, true, REPEAT);
+  GL.tex.coin  = texFrom(gl,ATLAS.coin, true, CLAMP);  // billboard, uv is 0..1
+  GL.tex.fig   = texFrom(gl,ATLAS.fig,  true, CLAMP);
+  GL.tex.shadow= texFrom(gl,ATLAS.shadow,true, CLAMP);
+
+  // Wall faces are seen at extreme grazing angles, which is the worst case for
+  // plain trilinear mip selection - it blurs whole walls into smears. Aniso
+  // keeps the texel density along the view ray.
+  const aniso = gl.getExtension("EXT_texture_filter_anisotropic") ||
+                gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic");
+  if(aniso){
+    const max = Math.min(8, gl.getParameter(aniso.MAX_TEXTURE_MAX_ANISOTROPY_EXT));
+    [GL.tex.wallM, GL.tex.floor, GL.tex.ceil].forEach(t=>{
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, max);
+    });
+  }
+
+  GL.buf.surf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER,GL.buf.surf);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1, 1,-1, -1,1, 1,1]),gl.STATIC_DRAW);
+  GL.buf.wall = gl.createBuffer();
+  GL.buf.spr  = gl.createBuffer();
+
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.clearColor(0.008,0.007,0.003,1);
+  GL.ok = true;
+}
+
+function resizeGL(){
+  const gl=GL.gl;
+  const dpr=Math.min(window.devicePixelRatio||1, 1.5) * (GL.dprCap||1);
+  const w=Math.floor(window.innerWidth*dpr), h=Math.floor(window.innerHeight*dpr);
+  if(w===GL.W && h===GL.H) return;
+  cvGL.width=w; cvGL.height=h;
+  GL.W=w; GL.H=h; GL.dpr=dpr;
+  gl.viewport(0,0,w,h);
+}
+
+/* ---- per-frame CPU buffers ---- */
+const MAX_RAYS = 760;
+let wallVerts = new Float32Array(MAX_RAYS*6*8);
+let wallN = 0;
+let sprVerts  = new Float32Array(3000*6*6);
+let sprN = 0;
+
+function pushWall(x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3,
+                  u0,v0,u1,v1, r,gc,b){
+  const V=wallVerts, o=wallN*48;          // 6 verts x 8 floats per wall
+  if(o + 48 > V.length) return;
+  const pts=[[x0,y0,z0,u0,v0],[x1,y1,z1,u1,v0],[x2,y2,z2,u1,v1],[x0,y0,z0,u0,v0],
+             [x2,y2,z2,u1,v1],[x3,y3,z3,u0,v1]];
+  for(let i=0;i<6;i++){
+    const P=pts[i];
+    V[o+i*8]   = P[0]; V[o+i*8+1] = P[1]; V[o+i*8+2] = P[2];
+    V[o+i*8+3] = P[3]; V[o+i*8+4] = P[4];
+    V[o+i*8+5] = r;  V[o+i*8+6] = gc; V[o+i*8+7] = b;
+  }
+  wallN++;
+}
+
+/* ==========================================================================
+   9. Camera + input
+   ========================================================================== */
+const Cam = {
+  p:[0,0.62,0],
+  f:[1,0,0], r:[0,0,1], u:[0,1,0],
+  yaw:0, pitch:0, fov:72*Math.PI/180, bob:0, shake:0
+};
+const Keys = Object.create(null);
+const Input = {
+  locked:false, dragging:false, lx:0, ly:0,
+  stick:{x:0,y:0,active:false}, sprint:false, look:{active:false,lx:0,ly:0}
+};
+
+function updateCamera(){
+  Cam.yaw   = Level.player.yaw;
+  Cam.pitch = Level.player.pitch;
+  const cp=Math.cos(Cam.pitch), sp=Math.sin(Cam.pitch);
+  const cy=Math.cos(Cam.yaw),   sy=Math.sin(Cam.yaw);
+  Cam.f = norm([cy*cp, sp, sy*cp]);
+  Cam.r = norm(cross(Cam.f,[0,1,0]));
+  Cam.u = cross(Cam.r,Cam.f);
+  const eyeY = EYE_H + Cam.bob;
+  Cam.p = [Level.player.x, eyeY, Level.player.z];
+}
+
+/* ==========================================================================
+   10. Game state + loop
+   ========================================================================== */
+const G = {
+  state:"menu",        // menu | play | dead | paused
+  coins:0,
+  graze:0,
+  grazeT:0,
+  deaths:0,
+  collected:0,
+  runSummaryText:"",
+  fps:0, frames:0, fpsT:0,
+  t:0,
+  hordeTimer:0,
+  deadFor:0,
+  countdown:0,
+  damageFlash:0,
+  combo:0, comboT:0,
+  settleBusy:false
+};
+
+const MAX_COINS_PER_SEC = DEFAULTS.rewardRatePerSecond;   // client-side mirror
+let WALK = 2.35, RUN = 4.1;
+
+function newRun(){
+  const seed = (Math.random()*4294967295)>>>0;
+  Level.gen(seed);
+  G.coins = 0; G.collected = 0; G.graze = 0; G.runSummaryText = "";
+  Cam.bob = 0; G.deadFor = 0; G.countdown = 0;
+  $("horde").style.opacity = 0;
+  $("vignette").style.opacity = 0;
+}
+
+function toast(msg,kind){
+  const d=document.createElement("div");
+  d.className="toast"+(kind?" "+kind:"");
+  d.textContent=msg;
+  $("toasts").appendChild(d);
+  setTimeout(()=>{ d.style.transition="opacity .4s"; d.style.opacity="0";
+                   setTimeout(()=>d.remove(),400); }, kind==="err"?6200:3600);
+}
+
+function flash(msg){
+  const f=$("flash"); f.textContent=msg; f.style.opacity="1";
+  clearTimeout(flash._t);
+  flash._t=setTimeout(()=>f.style.opacity="0",1900);
+}
+
+/* ---------- movement ---------- */
+function movePlayer(dt){
+  const P=Level.player;
+  let ix=0, iz=0;
+  if(Keys["KeyW"]||Keys["ArrowUp"])    iz-=1;
+  if(Keys["KeyS"]||Keys["ArrowDown"])  iz+=1;
+  if(Keys["KeyA"]||Keys["ArrowLeft"])  ix-=1;
+  if(Keys["KeyD"]||Keys["ArrowRight"]) ix+=1;
+  if(Input.stick.active){ ix+=Input.stick.x; iz+=Input.stick.y; }
+  const m=Math.hypot(ix,iz);
+  const sprint = (Keys["ShiftLeft"]||Keys["ShiftRight"]||Input.sprint) ? 1 : 0;
+  const speed = sprint ? RUN : WALK;
+
+  let vx=0,vz=0;
+  if(m>0.02){
+    ix/=m; iz/=m;
+    const cy=Math.cos(P.yaw), sy=Math.sin(P.yaw);
+    vx = (ix*cy - iz*sy) * speed;
+    vz = (ix*sy + iz*cy) * speed;
+  }else{
+    Cam.bob *= 0.86;
+  }
+
+  const r = 0.22;
+  const tryX = P.x + vx*dt;
+  if(!Level.collides(tryX, P.z, r)) P.x = tryX; else Cam.shake = 0.02;
+  const tryZ = P.z + vz*dt;
+  if(!Level.collides(P.x, tryZ, r)) P.z = tryZ; else Cam.shake = 0.02;
+
+  if(m>0.02){
+    const prev = Cam.bob;
+    Cam.bob += dt*(sprint?11:7.4);
+    // fire a step on each bob trough
+    if(Math.floor(prev/Math.PI) !== Math.floor(Cam.bob/Math.PI)) Snd.step(sprint);
+    Cam.bob = Math.abs(Math.sin(Cam.bob))*0.035;
+  }
+
+  // clamp inside the map
+  P.x = clamp(P.x, CELL, Level.w*CELL-CELL);
+  P.z = clamp(P.z, CELL, Level.h*CELL-CELL);
+
+  $("h-speed").textContent = (Math.hypot(vx,vz)).toFixed(1)+" m/s";
+}
+
+/* ---------- entities ---------- */
+function updateEntities(dt){
+  const P=Level.player;
+  let alert=0;
+  for(const e of Level.entities){
+    const dx=P.x-e.x, dz=P.z-e.z, d=Math.hypot(dx,dz);
+    const sees = d<13 && Level.lineOfSight(e.x,e.z,P.x,P.z);
+    if(sees){
+      if(e.alert < 0.05) Snd.alert();
+      e.alert = Math.min(1, e.alert + dt*1.5);
+      const sp = e.spd*(1.9*e.alert + 0.35);
+      e.dir = Math.atan2(dx,dz);
+      const nx=e.x+Math.sin(e.dir)*sp*dt, nz=e.z+Math.cos(e.dir)*sp*dt;
+      if(!Level.collides(nx,nz,0.22)){ e.x=nx; e.z=nz; }
+      if(d<0.62){ killPlayer(); }
+    }else{
+      e.alert = Math.max(0, e.alert - dt*0.45);
+      if(e.alert<=0){
+        e.dir += (mulberry32((e.seed + (G.t*4|0))|0)()-0.5)*dt*3.2;
+        const sp=e.spd*0.55;
+        const nx=e.x+Math.sin(e.dir)*sp*dt, nz=e.z+Math.cos(e.dir)*sp*dt;
+        if(Level.collides(nx,nz,0.22)) e.dir += 2.4;
+        else { e.x=nx; e.z=nz; }
+      }
+    }
+    e.bob += dt*3;
+    if(e.alert>0.5) alert++;
+  }
+  $("h-mons").textContent = alert + " / " + Level.entities.length;
+  $("vignette").style.opacity = clamp(alert/3,0,0.85).toFixed(2);
+}
+
+/* ---------- coins ---------- */
+function updateCoins(dt){
+  const P=Level.player;
+  let near=0, live=0;
+  for(const c of Level.coins){
+    if(c.taken) continue;
+    live++;
+    const dx=c.x-P.x, dz=c.z-P.z, d2=dx*dx+dz*dz;
+    if(d2 < 0.42*0.42){
+      c.taken=true;
+      G.collected++;
+      if(Econ.mode==="practice" || Econ.live){
+        // client-side mirror of the vault's per-second ceiling; the chain is
+        // authoritative, this only stops the HUD promising more than can settle
+        const elapsed = Math.max(1, Math.floor(Date.now()/1000) - Econ.runStartedAt);
+        const cap = Number(Econ.config.rewardRatePerSecond) * elapsed;
+        if(G.coins < cap){
+          G.coins++;
+          c.pop = 1;
+          Snd.pickup(G.combo = Math.min(12, (G.combo|0) + 1));
+          G.comboT = 1.6;
+        }
+      }
+    }
+    if(d2 < 90) near++;
+    if(c.pop>0){ c.pop-=dt*2.6; if(c.pop<=0) c.pop=0; }
+    c.phase += dt*2.2;
+  }
+  Level.coinsLive = live;
+  G.comboT -= dt;
+  if(G.comboT <= 0) G.combo = 0;
+  $("h-coins").textContent = G.coins;
+
+  // graze: collect without touching
+  G.grazeT -= dt;
+  if(G.grazeT<=0){
+    G.grazeT = 3;
+    G.graze += Math.floor(near*0.6);
+  }
+  $("h-score").textContent = G.graze;
+}
+
+/* ---------- death / extract ---------- */
+function killPlayer(){
+  if(G.state!=="play") return;
+  G.state="dead";
+  G.deaths++;
+  G.deadFor=0; G.countdown=10;
+  Snd.death();
+  $("d-title").textContent="DISASSEMBLED";
+  $("d-sub").textContent="the walls take you somewhere else…";
+  $("death").classList.add("on");
+  $("d-claim-btn").style.display="none";
+  $("d-settle-btn").style.display="none";
+  $("d-claim-btn").style.display="none";
+  $("d-menu-btn").style.display="none";
+  G.runSummaryText = runSummary();
+  $("d-spect").textContent = G.runSummaryText;
+  if(document.pointerLockElement) document.exitPointerLock();
+}
+
+function extract(){
+  if(G.state!=="play") return;
+  G.state="dead";
+  G.countdown=0;
+  $("d-title").textContent="EXTRACTED";
+  $("d-sub").textContent="you found the way out";
+  $("death").classList.add("on");
+  $("d-settle-btn").style.display = (Econ.mode==="earn" || Econ.mode==="practice") ? "inline-block" : "none";
+  $("d-claim-btn").style.display = Econ.pending>0n ? "inline-block" : "none";
+  $("d-menu-btn").style.display="inline-block";
+  G.runSummaryText = runSummary();
+  $("d-spect").textContent = G.runSummaryText;
+  if(document.pointerLockElement) document.exitPointerLock();
+}
+
+/* Expose the settlement controls once the death countdown finishes, so the
+   player is never stranded holding an escrow they cannot act on. */
+function revealSettle(){
+  const died = $("d-title").textContent === "DISASSEMBLED";
+  $("d-settle-btn").style.display = Econ.runSettled ? "none" : "inline-block";
+  $("d-claim-btn").style.display   = (!died && Econ.pending > 0n) ? "inline-block" : "none";
+  $("d-menu-btn").style.display    = "inline-block";
+  if(!Econ.runSettled) $("d-timer").innerHTML = 'extraction window is live &nbsp;·&nbsp; <em>SPACE</em> to go now';
+}
+
+function runSummary(){
+  const now = Math.floor(Date.now()/1000);
+  // runStartedAt is zeroed the moment a run settles; fall back to the frozen text.
+  if(!Econ.runStartedAt && G.runSummaryText) return G.runSummaryText;
+  const elapsed = Math.max(0, now - Econ.runStartedAt);
+  const left = Econ.runEndsAt - now;
+  return `collected ${G.coins} BACK · ${Math.floor(elapsed/60)}m${String(elapsed%60).padStart(2,"0")}s elapsed · ` +
+         (left>0 ? `${Math.floor(left/60)}m${String(left%60).padStart(2,"0")}s left` : "window closed");
+}
+
+async function doSettle(died){
+  if(G.settleBusy) return;
+  G.settleBusy = true;
+  const btn = $("d-settle-btn"); btn.disabled = true; btn.textContent="SETTLING…";
+  try{
+    await Econ.settle(G.coins, died);
+    await Econ.refresh();
+    UI.paintEcon();
+    $("d-settle-btn").style.display="none";
+    $("d-claim-btn").style.display="inline-block";
+    G.runSummaryText = runSummary() + " · settled";
+    $("d-spect").textContent = G.runSummaryText;
+  }catch(e){
+    toast(e.message||String(e), "err");
+    btn.disabled=false; btn.textContent="SETTLE RUN";
+  }
+  G.settleBusy=false;
+}
+
+async function doClaim(){
+  if(G.settleBusy) return;
+  G.settleBusy=true;
+  const btn=$("d-claim-btn"); btn.disabled=true; btn.textContent="CLAIMING…";
+  try{
+    await Econ.claim();
+    await Econ.refresh();
+    UI.paintEcon();
+    $("d-claim-btn").style.display="none";
+  }catch(e){ toast(e.message||String(e),"err"); }
+  btn.disabled=false; btn.textContent="CLAIM ALL";
+  G.settleBusy=false;
+}
+
+/* ==========================================================================
+   11. Render
+   ========================================================================== */
+
+/* Grid ray cast. Returns the wall cell hit, the distance along the ray, and
+   which axis the face lies on.
+   NOTE: sX/sZ are ray PARAMETERS (distance along the normalised ray), so the
+   initial value must DIVIDE by |rd.x|. Multiplying by the per-cell increment
+   inflates it by ~CELL and desynchronises the X and Z step counts, which puts
+   every wall at the wrong depth. */
+const RAY = { hit:false, dist:0, mapX:0, mapZ:0, side:0, inBounds:false, stepX:0, stepZ:0 };
+function castRay(ox, oz, rdx, rdz, maxSteps){
+  let mapX = Math.floor(ox/CELL), mapZ = Math.floor(oz/CELL);
+  const ax = Math.abs(rdx), az = Math.abs(rdz);
+  const dX = ax > 1e-12 ? CELL/ax : Infinity;   // t added per whole cell crossed
+  const dZ = az > 1e-12 ? CELL/az : Infinity;
+
+  let stepX, sX;
+  if(rdx < 0){ stepX = -1; sX = (ox - mapX*CELL) / (ax || 1e-12); }
+  else        { stepX =  1; sX = ((mapX+1)*CELL - ox) / (rdx || 1e-12); }
+
+  let stepZ, sZ;
+  if(rdz < 0){ stepZ = -1; sZ = (oz - mapZ*CELL) / (az || 1e-12); }
+  else        { stepZ =  1; sZ = ((mapZ+1)*CELL - oz) / (rdz || 1e-12); }
+
+  const Wg = Level.w, Hg = Level.h;
+  RAY.hit = false; RAY.inBounds = true;
+  for(let i=0; i<(maxSteps||400); i++){
+    if(sX < sZ){ sX += dX; mapX += stepX; RAY.side = 0; }
+    else       { sZ += dZ; mapZ += stepZ; RAY.side = 1; }
+    if(mapX<0||mapZ<0||mapX>=Wg||mapZ>=Hg){ RAY.inBounds=false; RAY.hit=false; return RAY; }
+    if(Level.grid[mapZ*Wg+mapX] === 1){
+      RAY.hit = true;
+      RAY.dist = (RAY.side===0) ? sX-dX : sZ-dZ;
+      RAY.mapX = mapX; RAY.mapZ = mapZ;
+      RAY.stepX = stepX; RAY.stepZ = stepZ;
+      return RAY;
+    }
+  }
+  RAY.hit = false;
+  return RAY;
+}
+
+function render(){
+  const gl=GL.gl;
+  resizeGL();
+  updateCamera();
+
+  const aspect = GL.W/GL.H;
+  const tanHalf = Math.tan(Cam.fov/2);
+  const P4 = persp(Cam.fov, aspect, 0.02, 90);
+  const V4 = viewFrom(Cam.p, Cam.r, Cam.u, Cam.f);
+  const MVP = mul4(P4, V4);
+
+  gl.viewport(0,0,GL.W,GL.H);
+  gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+
+  /* ---- floor + ceiling (analytic plane projection) ---- */
+  gl.disable(gl.DEPTH_TEST);
+  gl.depthMask(false);
+  const ps = GL.progs.surf;
+  gl.useProgram(ps.p);
+  gl.bindBuffer(gl.ARRAY_BUFFER,GL.buf.surf);
+  const aLoc=gl.getAttribLocation(ps.p,"aPos");
+  gl.enableVertexAttribArray(aLoc);
+  gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
+  gl.uniform3fv(ps.u.uCam,Cam.p);
+  gl.uniform3fv(ps.u.uRight,Cam.r);
+  gl.uniform3fv(ps.u.uUp,Cam.u);
+  gl.uniform3fv(ps.u.uFwd,Cam.f);
+  gl.uniform1f(ps.u.uAspect,aspect);
+  gl.uniform1f(ps.u.uTanHalf,tanHalf);
+  gl.uniform1f(ps.u.uFogNear,GL.fogNear);
+  gl.uniform1f(ps.u.uFogFar,GL.fogFar);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.uniform1i(ps.u.uTex,0);
+
+  gl.uniform1f(ps.u.uTexScale, 0.9);
+  gl.bindTexture(gl.TEXTURE_2D,GL.tex.floor);
+  gl.uniform3f(ps.u.uTint,1.02,0.95,0.78);
+  gl.uniform1f(ps.u.uPlaneY,0.0);
+  gl.uniform1f(ps.u.uPlaneSign,-1.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+
+  gl.bindTexture(gl.TEXTURE_2D,GL.tex.ceil);
+  gl.uniform3f(ps.u.uTint,1.05,1.02,0.92);
+  gl.uniform1f(ps.u.uPlaneY,WALL_H);
+  gl.uniform1f(ps.u.uPlaneSign,1.0);
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
+
+  /* ---- walls (DDA) ---- */
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthMask(true);
+
+  wallN=0;
+  // ceil, not floor: floor() would let rays exceed MAX_RAYS and silently drop
+  // every wall past the vertex-buffer limit.
+  const step = Math.max(1, Math.ceil(GL.W/MAX_RAYS));
+  const rays = Math.ceil(GL.W/step);
+  const Wg=Level.w, Hg=Level.h;
+
+  for(let px=0; px<GL.W; px+=step){
+    const sx = (px/step)/rays*2-1;
+    const rd = norm([
+      Cam.f[0] + Cam.r[0]*sx*tanHalf*aspect,
+      Cam.f[1] + Cam.r[1]*sx*tanHalf*aspect,
+      Cam.f[2] + Cam.r[2]*sx*tanHalf*aspect
+    ]);
+    // camera-space forward distance per world unit
+    const cf = dot([rd[0],rd[1],rd[2]], Cam.f);
+    if(cf <= 0.001) continue;
+
+    const ray = castRay(Cam.p[0], Cam.p[2], rd[0], rd[2], 200);
+    if(!ray.hit || !ray.inBounds) continue;
+
+    const dist = ray.dist, side = ray.side;
+    const mapX = ray.mapX, mapZ = ray.mapZ;
+    const stepX = ray.stepX, stepZ = ray.stepZ;
+    const perp = dist*cf;
+    if(perp < 0.03 || perp > GL.fogFar*1.05) continue;
+
+    // Exact hit point: rd is normalised and `dist` is the ray parameter, so this
+    // is sign-free. Deriving the face from mapX instead is off by one cell for
+    // stepX=-1 and two cells for stepX=+1, which made near walls render far away.
+    const hx = Cam.p[0] + rd[0]*dist;
+    const hz = Cam.p[2] + rd[2]*dist;
+    const z0=mapZ*CELL, z1=z0+CELL, x0=mapX*CELL, x1=x0+CELL;
+
+    const wt = Level.wallTypeAt((side===0?hx:(x0+x1)/2), (side===1?hz:(z0+z1)/2));
+    const lf = clamp(Level.lightAt(Cam.p[0]+ (hx-Cam.p[0])*0.35, Cam.p[2]+(hz-Cam.p[2])*0.35),0,1);
+    const near = Level.lightAt(hx - rd[0]*0.6, hz - rd[2]*0.6);
+    const b = 0.30 + 0.70*clamp(Math.max(lf*0.55, near*0.8), 0, 1);
+    // warm fluorescent cast
+    const r = b*1.02, g = b*0.985, bl = b*0.80;
+
+    // texture V runs 0 at ceiling to 1 at floor (canvas is flipped)
+    // Atlas sub-rect for this wall type. GL.UNPACK_FLIP_Y_WEBGL is on, so
+    // canvas row 0 maps to v=1: the canvas TOP half is v in [0.5,1], not [0,0.5].
+    // Getting this backwards silently renders hotel wall where wallpaper belongs.
+    const ax = wt%2, ay = (wt/2)|0;
+    const uOff = ax*0.5;
+    const vOff = (1-ay)*0.5;
+    const flip = side===0 ? ((stepX>0)?0:1) : ((stepZ>0)?0:1);
+    const u0=uOff+(flip?0.999:0.001)*0.5, u1=uOff+(flip?0.001:0.999)*0.5;
+    const v0=vOff+0.001*0.5, v1=vOff+0.999*0.5;
+
+    if(side===0){
+      pushWall(hx,0,z0, hx,WALL_H,z0, hx,WALL_H,z1, hx,0,z1, u0,v0,u1,v1, r,g,bl);
+    }else{
+      pushWall(x0,0,hz, x0,WALL_H,hz, x1,WALL_H,hz, x1,0,hz, u0,v0,u1,v1, r,g,bl);
+    }
+    // shading is keyed off the hit face itself so lighting matches what is drawn
+  }
+
+  const wp=GL.progs.wall;
+  gl.useProgram(wp.p);
+  gl.bindBuffer(gl.ARRAY_BUFFER,GL.buf.wall);
+  gl.bufferData(gl.ARRAY_BUFFER, wallVerts.subarray(0,wallN*48), gl.DYNAMIC_DRAW);
+  const pPos=gl.getAttribLocation(wp.p,"aPos");
+  const pUV =gl.getAttribLocation(wp.p,"aUV");
+  const pT  =gl.getAttribLocation(wp.p,"aTint");
+  gl.enableVertexAttribArray(pPos); gl.vertexAttribPointer(pPos,3,gl.FLOAT,false,32,0);
+  gl.enableVertexAttribArray(pUV ); gl.vertexAttribPointer(pUV ,2,gl.FLOAT,false,32,12);
+  gl.enableVertexAttribArray(pT  ); gl.vertexAttribPointer(pT  ,3,gl.FLOAT,false,32,20);
+  gl.uniformMatrix4fv(wp.u.uMVP,false,MVP);
+  gl.uniform3fv(wp.u.uEye,Cam.p);
+  gl.uniform1f(wp.u.uFogNear,GL.fogNear);
+  gl.uniform1f(wp.u.uFogFar,GL.fogFar);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.uniform1i(wp.u.uTex,0);
+  gl.bindTexture(gl.TEXTURE_2D,GL.tex.wallM);
+  gl.drawArrays(gl.TRIANGLES,0,wallN*6);
+
+  /* ---- sprites: two batches, two textures, one draw call each ---- */
+  const sp2 = GL.progs.spr;
+  gl.useProgram(sp2.p);
+  gl.bindBuffer(gl.ARRAY_BUFFER,GL.buf.spr);
+  const sPos=gl.getAttribLocation(sp2.p,"aPos");
+  const sUV =gl.getAttribLocation(sp2.p,"aUV");
+  const sG  =gl.getAttribLocation(sp2.p,"aGlow");
+  gl.enableVertexAttribArray(sPos); gl.vertexAttribPointer(sPos,3,gl.FLOAT,false,24,0);
+  gl.enableVertexAttribArray(sUV ); gl.vertexAttribPointer(sUV ,2,gl.FLOAT,false,24,12);
+  gl.enableVertexAttribArray(sG  ); gl.vertexAttribPointer(sG  ,1,gl.FLOAT,false,24,20);
+  gl.uniformMatrix4fv(sp2.u.uMVP,false,MVP);
+  gl.uniform3fv(sp2.u.uEye,Cam.p);
+  gl.uniform1f(sp2.u.uFogNear,GL.fogNear);
+  gl.uniform1f(sp2.u.uFogFar,GL.fogFar);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.uniform1i(sp2.u.uTex,0);
+
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  const drawBatch = (texture) => {
+    if(!sprN) return;
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.bufferData(gl.ARRAY_BUFFER, sprVerts.subarray(0, sprN*36), gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES, 0, sprN*6);
+    sprN = 0;
+  };
+
+  // contact shadows first, so sprites sit on top of them
+  for(const e of Level.entities) pushShadow(e.x, e.z, 0.30 + 0.22*e.alert);
+  for(const c of Level.coins){
+    if(c.taken) continue;
+    if((c.x-Cam.p[0])**2 + (c.z-Cam.p[2])**2 > GL.fogFar*GL.fogFar) continue;
+    pushShadow(c.x, c.z, 0.15);
+  }
+  drawBatch(GL.tex.shadow);
+
+  // coins
+  for(const c of Level.coins){
+    if(c.taken) continue;
+    const dx=c.x-Cam.p[0], dz=c.z-Cam.p[2], d2=dx*dx+dz*dz;
+    if(d2 > GL.fogFar*GL.fogFar) continue;
+    const fdot=(dx*Cam.f[0]+dz*Cam.f[2])/Math.max(0.001,Math.sqrt(d2));
+    if(fdot < 0.25) continue;
+    const bob=Math.sin(c.phase)*0.05;
+    const pop=c.pop>0 ? 1+c.pop*1.6 : 1;
+    const y=0.26+bob+(c.pop>0 ? (1-c.pop)*0.5 : 0);
+    pushSprite(c.x, y, c.z, 0.17*pop, c.phase*1.7, 1);
+  }
+  drawBatch(GL.tex.coin);
+
+  // wanderers
+  for(const e of Level.entities){
+    const dx=e.x-Cam.p[0], dz=e.z-Cam.p[2], d2=dx*dx+dz*dz;
+    if(d2 > GL.fogFar*GL.fogFar) continue;
+    const fdot=(dx*Cam.f[0]+dz*Cam.f[2])/Math.max(0.001,Math.sqrt(d2));
+    if(fdot < 0.18) continue;
+    const bob=Math.sin(e.bob*2)*0.03;
+    // spin MUST stay 0: pushSprite scales X by cos(spin), so a spinning figure
+    // collapses edge-on into an invisible sliver.
+    // y = 0.625*size lands the feet on the floor plane (y=0).
+    const esz = 0.52;
+    pushSprite(e.x, 0.625*esz+bob, e.z, esz, 0, e.alert>0.5 ? 2.3 : 1.0);
+  }
+  drawBatch(GL.tex.fig);
+}
+
+/* Flat quad lying on the floor plane. Without these, sprites read as floating. */
+function pushShadow(x,z,radius){
+  const V=sprVerts, o=sprN*36;
+  if(o + 36 > V.length) return;
+  const y = 0.012;
+  const c=[[-1,-1,0,1],[1,-1,1,1],[1,1,1,0],[-1,-1,0,1],[1,1,1,0],[-1,1,0,0]];
+  for(let i=0;i<6;i++){
+    const q=c[i];
+    V[o+i*6]   = x + q[0]*radius;
+    V[o+i*6+1] = y;
+    V[o+i*6+2] = z + q[1]*radius;
+    V[o+i*6+3] = q[2];
+    V[o+i*6+4] = q[3];
+    V[o+i*6+5] = -1;              // negative glow == shadow branch
+  }
+  sprN++;
+}
+
+/* Sprite helper — writes a pre-billboarded world-space quad so every sprite
+   in the frame batches into a single draw call. */
+function pushSprite(x,y,z,size,spin,glowKind){
+  const V=sprVerts, o=sprN*36;
+  if(o + 36 > V.length) return;
+  const rx=Cam.r[0], ry=Cam.r[1], rz=Cam.r[2];
+  const ux=Cam.u[0], uy=Cam.u[1], uz=Cam.u[2];
+  const s = Math.cos(spin);
+  const corners=[[-1,-1,0,1],[1,-1,1,1],[1,1,1,0],[-1,-1,0,1],[1,1,1,0],[-1,1,0,0]];
+  for(let i=0;i<6;i++){
+    const c=corners[i];
+    const ox = c[0]*s*size, oy = c[1]*size;
+    V[o+i*6]   = x + rx*ox + ux*oy;
+    V[o+i*6+1] = y + ry*ox + uy*oy;
+    V[o+i*6+2] = z + rz*ox + uz*oy;
+    V[o+i*6+3] = c[2];
+    V[o+i*6+4] = c[3];
+    V[o+i*6+5] = glowKind;
+  }
+  sprN++;
+}
+
+/* ---------- radar ---------- */
+function drawRadar(){
+  const c=$("radar"), g=c.getContext("2d");
+  const S=c.width, R=S/2;
+  g.clearRect(0,0,S,S);
+  g.save(); g.translate(R,R);
+
+  g.strokeStyle="rgba(255,233,160,.16)"; g.lineWidth=1;
+  for(let r=1;r<=3;r++){ g.beginPath(); g.arc(0,0,r*R/3.2,0,7); g.stroke(); }
+  g.beginPath(); g.moveTo(-R,0); g.lineTo(R,0); g.moveTo(0,-R); g.lineTo(0,R); g.stroke();
+
+  const range=16;
+  const px=Level.player.x/CELL, py=Level.player.z/CELL;
+  const cellPx=(R-2)/range;
+
+  /* World -> radar, matched to the 3D camera rather than the XZ grid.
+     Cam.f = (cos yaw, 0, sin yaw) is "forward" and Cam.r = (-sin yaw, 0, cos yaw)
+     is "right". Forward must land at the top of the dial (canvas -Y) and right
+     at +X, otherwise the minimap is rotated against what the player sees. */
+  const cyw=Math.cos(Level.player.yaw), syw=Math.sin(Level.player.yaw);
+  const project = (wx,wz) => {
+    const dx=wx-px, dy=wz-py;
+    return [ (dx*(-syw) + dy*cyw) * cellPx,
+             -(dx*cyw + dy*syw) * cellPx ];      // negate: canvas Y grows down
+  };
+
+  g.save();
+  g.beginPath(); g.arc(0,0,R-2,0,7); g.clip();
+
+  // walls
+  g.fillStyle="rgba(255,233,160,.14)";
+  for(let y=0;y<Level.h;y++) for(let x=0;x<Level.w;x++){
+    if(!Level.isWall(x,y)) continue;
+    const [sx,sy] = project(x, y);
+    if(sx < -R || sx > R || sy < -R || sy > R) continue;
+    g.fillRect(sx-cellPx/2, sy-cellPx/2, cellPx, cellPx);
+  }
+  // entities
+  for(const e of Level.entities){
+    const [sx,sy] = project(e.x/CELL, e.z/CELL);
+    if(sx*sx+sy*sy > R*R) continue;
+    g.fillStyle = e.alert>0.5 ? "rgba(255,80,50,.95)" : "rgba(255,180,120,.55)";
+    g.beginPath(); g.arc(sx,sy,e.alert>0.5?3.2:2.2,0,7); g.fill();
+  }
+  // coins
+  g.fillStyle="rgba(255,214,74,.85)";
+  for(const c of Level.coins){
+    if(c.taken) continue;
+    const [sx,sy] = project(c.x/CELL, c.z/CELL);
+    if(sx*sx+sy*sy > R*R) continue;
+    g.fillRect(sx-1,sy-1,2,2);
+  }
+  g.restore();
+
+  // player
+  g.fillStyle="#fff6d6";
+  g.beginPath(); g.moveTo(0,-6); g.lineTo(4,5); g.lineTo(0,2.5); g.lineTo(-4,5); g.closePath(); g.fill();
+  g.restore();
+}
+
+/* ---------- HUD paint ---------- */
+function paintHUD(dt){
+  $("h-form").textContent = G.coins>0 ? "nomad" : "entity";
+  $("h-biome").textContent = Level.biome;
+  if(Econ.runEndsAt){
+    const left=Econ.runEndsAt-Math.floor(Date.now()/1000);
+    $("h-warp").textContent = left>0 ? fmtClock(left) : "expired";
+    $("h-warp").className = left>60 ? "ok" : left>0 ? "warn" : "bad";
+  }else{ $("h-warp").textContent="—"; $("h-warp").className=""; }
+
+  if(G.damageFlash>0){ G.damageFlash-=dt; $("dmg").style.opacity=clamp(G.damageFlash/0.35,0,1); }
+}
+const fmtClock = s => Math.floor(s/60)+"m"+String(Math.floor(s%60)).padStart(2,"0")+"s";
+
+/* ---------- main loop ---------- */
+let last=performance.now();
+/* Adaptive quality: if we sit below ~34fps for a few windows, shed pixels
+   rather than letting the whole game feel like syrup. Recovers when it can. */
+let _quality = 1, _slow = 0, _fast = 0;
+function adaptQuality(){
+  if(G.fps < 34){ _slow++; _fast = 0; } else if(G.fps > 52){ _fast++; _slow = 0; }
+  if(_slow >= 4 && _quality > 0.6){ _quality = Math.max(0.6, _quality - 0.2); _slow = 0; GL.gl.finish(); }
+  else if(_fast >= 8 && _quality < 1){ _quality = Math.min(1, _quality + 0.2); _fast = 0; }
+  GL.dprCap = _quality;
+  if(GL.W){ GL.W = 0; resizeGL(); }     // force a re-measure at the new cap
+}
+
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(0.05,(now-last)/1000); last=now;
+  G.t+=dt;
+
+  if(G.state==="play"){
+    movePlayer(dt);
+    updateEntities(dt);
+    updateCoins(dt);
+  }else if(G.state==="dead"){
+    G.deadFor+=dt;
+    if(G.countdown>0){
+      G.countdown-=dt;
+      $("d-count").textContent=Math.max(0,Math.ceil(G.countdown));
+      if(G.countdown<=0) revealSettle();
+    }
+    // world keeps breathing on the death screen
+    for(const e of Level.entities) e.bob+=dt*2;
+  }
+
+  paintHUD(dt);
+  drawRadar();
+
+  G.frames++; G.fpsT+=dt;
+  if(G.fpsT>0.35){ G.fps=Math.round(G.frames/G.fpsT); G.frames=0; G.fpsT=0;
+    $("h-fps").textContent=G.fps; adaptQuality(); }
+
+  if(GL.ok) render();
+}
+
+
+/* ==========================================================================
+   11b. AUDIO — fully synthesised, zero asset files
+   The Backrooms is 60Hz of dying fluorescent tube. Everything below is
+   generated with oscillators and one shared noise buffer.
+   ========================================================================== */
+const Snd = {
+  ctx:null, master:null, hum:null, noise:null, on:true, started:false,
+
+  boot(){
+    if(this.started) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) { this.on = false; return; }
+    try{
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = 0.0;
+      this.master.connect(this.ctx.destination);
+
+      // one second of white noise, reused by every noise-based voice
+      const len = this.ctx.sampleRate;
+      this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const d = this.noise.getChannelData(0);
+      for(let i=0;i<len;i++) d[i] = Math.random()*2-1;
+
+      this.startHum();
+      this.started = true;
+    }catch(e){ this.on=false; }
+  },
+
+  resume(){ if(this.ctx && this.ctx.state === "suspended") this.ctx.resume(); },
+
+  setEnabled(on){
+    this.on = on;
+    try{ localStorage.setItem("backrooms.snd", on ? "1" : "0"); }catch{}
+    if(this.master) this.master.gain.setTargetAtTime(on?0.5:0, this.ctx.currentTime, 0.05);
+  },
+
+  /* fluorescent hum: mains 50Hz + its 2nd and 3rd harmonic, gently detuned,
+     with a slow wobble so it never sits perfectly still */
+  startHum(){
+    const c=this.ctx;
+    const g=c.createGain(); g.gain.value = 0.055;
+    const filt=c.createBiquadFilter();
+    filt.type="lowpass"; filt.frequency.value=520; filt.Q.value=3.5;
+    const nodes=[];
+    [[50,0.9],[100,0.5],[150,0.22],[201,0.1]].forEach(([f,a])=>{
+      const o=c.createOscillator();
+      o.type = f===50 ? "sawtooth" : "sine";
+      o.frequency.value = f * (1 + (Math.random()-0.5)*0.004);
+      const og=c.createGain(); og.gain.value=a;
+      o.connect(og); og.connect(filt);
+      o.start(); nodes.push(o);
+    });
+    // slow amplitude wobble = a tube that is not quite healthy
+    const lfo=c.createOscillator(); lfo.frequency.value=0.13;
+    const lg=c.createGain(); lg.gain.value=0.02;
+    lfo.connect(lg); lg.connect(g.gain); lfo.start();
+    // occasional electrical tick
+    const tick = () => {
+      if(!this.on || !this.ctx) return;
+      if(Math.random() < 0.45) this.click();
+      setTimeout(tick, 700 + Math.random()*2600);
+    };
+    setTimeout(tick, 1500);
+
+    filt.connect(g); g.connect(this.master);
+    this.hum = g;
+  },
+
+  env(node, peak, attack, decay){
+    const t=this.ctx.currentTime;
+    const g=node.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(0.0001, t);
+    g.exponentialRampToValueAtTime(Math.max(0.0002,peak), t+attack);
+    g.exponentialRampToValueAtTime(0.0001, t+attack+decay);
+  },
+
+  tone(freq, peak, attack, decay, type){
+    if(!this.on || !this.ctx) return;
+    const c=this.ctx, o=c.createOscillator(), g=c.createGain();
+    o.type = type||"sine";
+    o.frequency.setValueAtTime(freq, c.currentTime);
+    o.connect(g); g.connect(this.master);
+    this.env(g, peak, attack, decay);
+    o.start(); o.stop(c.currentTime+attack+decay+0.05);
+    return o;
+  },
+
+  burst(peak, decay, freq, q, type){
+    if(!this.on || !this.ctx || !this.noise) return;
+    const c=this.ctx, src=c.createBufferSource();
+    src.buffer=this.noise;
+    const f=c.createBiquadFilter();
+    f.type=type||"bandpass"; f.frequency.value=freq||900; f.Q.value=q||1.2;
+    const g=c.createGain();
+    src.connect(f); f.connect(g); g.connect(this.master);
+    this.env(g, peak, 0.004, decay);
+    src.start(); src.stop(c.currentTime+decay+0.06);
+  },
+
+  /* --- cues --- */
+  pickup(combo){
+    const f = 880 * Math.pow(1.0595, Math.min(12, combo||0));
+    this.tone(f, 0.10, 0.005, 0.10, "triangle");
+    this.tone(f*2, 0.045, 0.004, 0.07, "sine");
+  },
+  step(sprint){ this.burst(sprint?0.055:0.032, 0.075, 260+sprint*220, 0.9, "lowpass"); },
+  click(){ this.burst(0.03, 0.02, 2600, 6, "bandpass"); },
+  alert(){ this.tone(70, 0.13, 0.05, 0.5, "sawtooth"); this.burst(0.05,0.3,180,0.7); },
+  death(){
+    if(!this.on || !this.ctx) return;
+    const c=this.ctx, o=c.createOscillator(), g=c.createGain();
+    o.type="sawtooth";
+    o.frequency.setValueAtTime(220, c.currentTime);
+    o.frequency.exponentialRampToValueAtTime(32, c.currentTime+0.9);
+    const f=c.createBiquadFilter(); f.type="lowpass"; f.frequency.value=900;
+    o.connect(f); f.connect(g); g.connect(this.master);
+    this.env(g, 0.22, 0.01, 0.95);
+    o.start(); o.stop(c.currentTime+1.1);
+    this.burst(0.16, 0.7, 140, 0.5, "lowpass");
+  },
+  settled(){
+    [523.25, 659.25, 783.99].forEach((f,i)=>
+      setTimeout(()=>this.tone(f, 0.075, 0.01, 0.30, "triangle"), i*85));
+  },
+  claimed(){
+    [659.25, 987.77, 1318.5].forEach((f,i)=>
+      setTimeout(()=>this.tone(f, 0.085, 0.01, 0.36, "sine"), i*70));
+  },
+  rejected(){ this.tone(150, 0.11, 0.008, 0.22, "square"); }
+};
+
+/* ==========================================================================
+   12. UI wiring
+   ========================================================================== */
+const UI = {
+  init(){
+    // ---- config load/save ----
+    let saved={};
+    try{ saved=JSON.parse(localStorage.getItem(CFG_KEY)||"{}"); }catch{}
+    CONFIG.tokenAddress = saved.tokenAddress || CONFIG.tokenAddress;
+    CONFIG.vaultAddress = saved.vaultAddress || CONFIG.vaultAddress;
+    CONFIG.chainId      = Number(saved.chainId)||CONFIG.chainId;
+    $("c-token").value = CONFIG.tokenAddress;
+    $("c-vault").value = CONFIG.vaultAddress;
+    $("c-chain").value = String(CONFIG.chainId);
+
+    $("c-save").onclick = ()=>{
+      const t=$("c-token").value.trim(), v=$("c-vault").value.trim();
+      const cid=parseInt($("c-chain").value.trim(),10);
+      if(t && !addrOk(t)) return toast("Token address is not a valid 0x address.","err");
+      if(v && !addrOk(v)) return toast("Vault address is not a valid 0x address.","err");
+      if(!Number.isInteger(cid) || cid<=0) return toast("Chain id must be a positive integer.","err");
+      CONFIG.tokenAddress=t; CONFIG.vaultAddress=v; CONFIG.chainId=cid;
+      localStorage.setItem(CFG_KEY, JSON.stringify({tokenAddress:t,vaultAddress:v,chainId:cid}));
+      toast("Contract saved","ok");
+      UI.refreshAll();
+    };
+    $("c-clear").onclick = ()=>{
+      CONFIG.tokenAddress=""; CONFIG.vaultAddress="";
+      $("c-token").value=""; $("c-vault").value="";
+      localStorage.removeItem(CFG_KEY);
+      toast("Cleared");
+      UI.refreshAll();
+    };
+    $("w-explorer").onclick = ()=>{
+      const a = Chain.account || CONFIG.tokenAddress;
+      if(!a) return toast("Nothing to look up yet.");
+      window.open(CONFIG.explorer+"/address/"+a,"_blank","noopener");
+    };
+
+    // ---- wallet ----
+    $("w-connect").onclick = async ()=>{
+      $("w-connect").disabled=true;
+      try{
+        await Chain.connect();
+        await Econ.refresh();
+        toast("Connected "+short(Chain.account),"ok");
+      }catch(e){ toast(e.message||String(e),"err"); }
+      $("w-connect").disabled=false;
+      UI.onAccountChange();
+    };
+    $("w-disconnect").onclick=()=>{ Chain.disconnect(); UI.onAccountChange(); };
+    $("w-refresh").onclick=async()=>{ await UI.refreshAll(); toast("Refreshed"); };
+    $("w-refresh2").onclick=async()=>{ await UI.refreshAll(); toast("Vault data refreshed"); };
+    $("w-reset-prac").onclick=()=>{
+      if(Econ.mode==="earn") return toast("Reset applies to practice mode only.","err");
+      if(!confirm("Reset the practice ledger? Balance, claimable BACK, runs and the emission reserve all return to defaults.")) return;
+      Econ.resetPractice(); UI.paintEcon(); toast("Practice ledger reset","ok");
+    };
+
+    if(!Chain.available){
+      $("w-connect").disabled=true;
+      $("w-note").innerHTML = "No injected wallet detected. <b>Practice mode is fully functional</b> and mirrors the vault's caps exactly.";
+      $("m-earn").disabled = true;
+      $("m-earn-sub").textContent = "no wallet detected in this browser";
+    }
+
+    // ---- modes ----
+    $("m-practice").onclick = async ()=>{
+      Snd.boot(); if(Snd.on && Snd.ctx){ Snd.resume(); Snd.master.gain.setTargetAtTime(0.5, Snd.ctx.currentTime, 0.4); }
+      Econ.mode="practice"; Econ.runSettled=true; Econ.runStartedAt=0; Econ.runEndsAt=0;
+      Econ.loadPractice();
+      UI.start(false);
+    };
+    $("m-earn").onclick = async ()=>{
+      if(!Chain.account){ toast("Connect a wallet first.","err"); $("w-connect").click(); return; }
+      if(!addrOk(CONFIG.vaultAddress) || !addrOk(CONFIG.tokenAddress)){
+        toast("Set the BACK and vault addresses in the CONTRACT box first.","err"); return;
+      }
+      Snd.boot(); if(Snd.on && Snd.ctx){ Snd.resume(); Snd.master.gain.setTargetAtTime(0.5, Snd.ctx.currentTime, 0.4); }
+      Econ.mode="earn"; Econ.runSettled=true; Econ.runStartedAt=0; Econ.runEndsAt=0;
+      try{ await Econ.refresh(); }catch(e){ toast(e.message||String(e),"err"); }
+      UI.start(true);
+    };
+
+    // ---- death screen ----
+    $("d-settle-btn").onclick = ()=>doSettle($("d-title").textContent==="DISASSEMBLED");
+    $("d-claim-btn").onclick   = doClaim;
+    $("d-menu-btn").onclick    = ()=>UI.toMenu();
+
+    // ---- keys ----
+    addEventListener("keydown",(e)=>{
+      Keys[e.code]=true;
+      if(e.code==="Escape"){ if(G.state==="play") UI.pause(); return; }
+      if(G.state!=="play") return;
+      if(e.code==="KeyE"){ extract(); e.preventDefault(); }
+      if(e.code==="KeyB"){ openBuy(); e.preventDefault(); }
+      if(e.code==="KeyC"){ doClaim(); e.preventDefault(); }
+      if(e.code==="KeyR"){ killPlayer(); e.preventDefault(); }
+      if(e.code==="KeyH"){ summonHorde(); e.preventDefault(); }
+      if(e.code==="KeyM"){ $("btn-sound").click(); e.preventDefault(); }
+      if(e.code==="Space" && G.state==="dead"){ G.countdown=0; }
+    });
+    addEventListener("keyup",(e)=>{ Keys[e.code]=false; });
+    addEventListener("blur",()=>{ for(const k in Keys) Keys[k]=false; });
+
+    // ---- pointer lock / drag look ----
+    cvGL.addEventListener("click",()=>{
+      if(G.state!=="play") return;
+      // browsers only allow audio after a gesture; this click is that gesture
+      Snd.boot();
+      if(Snd.on && Snd.ctx){ Snd.resume(); Snd.master.gain.setTargetAtTime(0.5, Snd.ctx.currentTime, 0.4); }
+      if(cvGL.requestPointerLock && !Input.stick.active) cvGL.requestPointerLock();
+    });
+    document.addEventListener("pointerlockchange",()=>{
+      Input.locked = document.pointerLockElement===cvGL;
+      if(!Input.locked && G.state==="play") UI.pause();
+    });
+    document.addEventListener("mousemove",(e)=>{
+      if(Input.locked){ look(e.movementX, e.movementY); }
+      else if(Input.dragging){ look(e.clientX-Input.lx, e.clientY-Input.ly); Input.lx=e.clientX; Input.ly=e.clientY; }
+    });
+    cvGL.addEventListener("mousedown",(e)=>{ Input.dragging=true; Input.lx=e.clientX; Input.ly=e.clientY; });
+    addEventListener("mouseup",()=>{ Input.dragging=false; });
+
+    // ---- touch ----
+    if(matchMedia("(pointer:coarse)").matches){
+      document.body.classList.add("touch");
+      $("touch").style.display="block";
+      setupTouch();
+    }
+
+    // ---- sound + in-game menu ----
+    try{ Snd.on = localStorage.getItem("backrooms.snd") !== "0"; }catch{}
+    const soundBtn = $("btn-sound");
+    const paintSound = ()=>{ soundBtn.textContent = "SOUND: " + (Snd.on?"ON":"OFF");
+                             soundBtn.className = "sm" + (Snd.on ? " good" : ""); };
+    paintSound();
+    soundBtn.onclick = ()=>{
+      Snd.boot(); Snd.setEnabled(!Snd.on);
+      if(Snd.on && Snd.ctx) Snd.resume();
+      paintSound();
+    };
+    $("btn-menu").onclick = ()=>UI.toMenu();
+
+    // ---- pause ----
+    $("pause").onclick = ()=>{ if(G.state==="paused") UI.resume(); };
+    $("p-resume").onclick = ()=>UI.resume();
+    $("p-menu").onclick = (e)=>{ e.stopPropagation(); UI.toMenu(); };
+
+    addEventListener("resize",()=>resizeGL());
+    document.addEventListener("visibilitychange",()=>{
+      if(document.hidden && G.state==="play") UI.pause();
+    });
+  },
+
+  onAccountChange(){
+    const a=Chain.account;
+    $("w-acct").textContent = a?short(a):"not connected";
+    $("w-net").textContent = (Chain.chainId?Chain.chainId:"—")+
+      (Chain.chainId===CONFIG.chainId?" · "+CONFIG.chainName:" · WRONG NETWORK");
+    $("w-net").className = Chain.chainId===CONFIG.chainId ? "" : "bad";
+    $("w-disconnect").disabled = !a;
+    $("w-refresh").disabled = !a;
+    $("h-wallet").textContent = a?short(a):(Econ.mode==="practice"?"practice":"—");
+    $("h-wallet").className = a?"ok":"warn";
+    if(!a && Econ.mode==="earn"){ Econ.mode="practice"; }
+    UI.paintEcon();
+  },
+
+  async refreshAll(){
+    try{ await Econ.refresh(); }catch(e){ if(Chain.account) toast(e.message||String(e),"err"); }
+    if(Econ.live){
+      try{ Econ._allow = fmtShort(await Econ.allowance()); }catch{ Econ._allow = "?"; }
+    }else{ Econ._allow = null; }
+    UI.paintEcon(); UI.onAccountChange();
+  },
+
+  paintEcon(){
+    const c=Econ.config;
+    const on=Econ.live;
+    $("h-back").textContent    = fmtShort(Econ.balance);
+    $("h-pending").textContent = fmtShort(Econ.pending);
+    $("h-daily").textContent   = fmtShort(Econ.dailyLeft);
+    $("h-emis").textContent    = fmtShort(Econ.emissionReserve);
+    $("h-emis").className      = Econ.emissionReserve<=c.reserveFloor ? "bad":"ok";
+    $("h-back").className      = on ? "ok" : "";
+
+    const chip=$("mode-chip");
+    if(Econ.mode==="earn"){ chip.className="live"; chip.textContent="ONCHAIN"; }
+    else { chip.className="practice"; chip.textContent="PRACTICE"; }
+
+    $("w-bal").textContent = on ? fmt(Econ.balance,2)+" BACK" : "—";
+
+    $("econ-left").innerHTML = [
+      ["entry fee",      fmtShort(Econ.entryFeeRaw)+" BACK"],
+      ["run length",     fmtClock(c.minRunDuration)+" – "+fmtClock(c.maxRunDuration)],
+      ["rate ceiling",   c.rewardRatePerSecond.toString()+" BACK/s"],
+      ["max run reward", c.maxRunReward.toString()+" BACK"],
+      ["daily cap",      c.dailyCap.toString()+" BACK"],
+      ["runs today",     Econ.runsToday+" / "+c.maxRunsPerDay]
+    ].map(([k,val])=>`<div class="kv"><span>${k}</span><b>${val}</b></div>`).join("");
+
+    $("econ-right").innerHTML = [
+      ["cooldown",       c.cooldown+"s"],
+      ["settle window",  c.settleWindow+"s"],
+      ["claimable",      fmtShort(Econ.pending)+" BACK"],
+      ["emission left",  fmtShort(Econ.emissionReserve)+" BACK"],
+      ["reserve floor",  fmtShort(c.reserveFloor)+" BACK"],
+      ["vault status",   !on ? "practice" : Econ.paused ? "PAUSED" :
+                        (Econ.emissionReserve<=c.reserveFloor ? "DRAINED" : "LIVE")]
+    ].map(([k,val])=>`<div class="kv"><span>${k}</span><b>${val}</b></div>`).join("");
+
+    $("w-allow").textContent = on ? (Econ._allow || "…") : "—";
+  },
+
+  async start(onchain){
+    $("menu").style.display="none";
+    $("pause").style.display="none";
+    $("death").classList.remove("on");
+
+    // enter the run on-chain before dropping the player in
+    const dur = clamp(Econ.config.maxRunDuration, 300, 3600);
+    try{
+      if(onchain || Econ.mode==="earn"){
+        toast("Opening a run — confirm the stake transaction…");
+      }
+      await Econ.enter(dur);
+    }catch(e){
+      toast(e.message||String(e),"err");
+      $("menu").style.display="flex";
+      return;
+    }
+
+    newRun();
+    G.state="play";
+    G.coins=0; G.collected=0;
+    $("d-settle-btn").style.display="none";
+    $("d-claim-btn").style.display="none";
+    $("d-menu-btn").style.display="none";
+    $("d-timer").style.display="";
+    flash("RUN OPEN · STAKE " + fmtShort(Econ.runStake) + " BACK ESCROWED");
+    await UI.refreshAll();
+  },
+
+  pause(){
+    G.state="paused";
+    $("pause").style.display="flex";
+    if(document.pointerLockElement) document.exitPointerLock();
+  },
+  resume(){
+    $("pause").style.display="none";
+    G.state="play";
+    if(cvGL.requestPointerLock && !document.body.classList.contains("touch")) cvGL.requestPointerLock();
+  },
+  toMenu(){
+    G.state="menu";
+    $("menu").style.display="flex";
+    $("pause").style.display="none";
+    $("death").classList.remove("on");
+    if(document.pointerLockElement) document.exitPointerLock();
+    UI.refreshAll();
+  }
+};
+
+function look(dx,dy){
+  if(G.state!=="play") return;
+  Level.player.yaw   += dx*0.0026;
+  Level.player.pitch -= dy*0.0026;
+  Level.player.pitch = clamp(Level.player.pitch,-1.35,1.35);
+}
+
+function summonHorde(){
+  if(G.state!=="play") return;
+  const el=$("horde");
+  el.style.opacity="1";
+  el.textContent="HORDE";
+  setTimeout(()=>el.style.opacity="0",900);
+  G.hordeTimer=4;
+  let n=0;
+  const iv=setInterval(()=>{
+    if(++n>8 || G.state!=="play"){ clearInterval(iv); return; }
+    const a=Math.random()*7, r=7+Math.random()*5;
+    const x=Level.player.x+Math.sin(a)*r, z=Level.player.z+Math.cos(a)*r;
+    if(!Level.collides(x,z,0.25))
+      Level.entities.push({x,z,vx:0,vz:0,dir:a+Math.PI,spd:1.5,state:"hunt",
+                           alert:1,bob:Math.random()*7,seed:(Math.random()*1e9)|0});
+  },260);
+}
+
+/* ---------- buy panel ---------- */
+function openBuy(){
+  if(Econ.mode==="practice" || !Econ.live){
+    toast("Practice mode — BACK is free and already in your balance.","ok");
+    return;
+  }
+  const amt = prompt("How much BACK to buy? (decimal, e.g. 5000)");
+  if(!amt) return;
+  const raw = parseHuman(amt);
+  if(raw===null) return toast("Not a number.","err");
+  if(raw<=0n) return toast("Enter an amount.","err");
+  (async()=>{
+    try{
+      const q = await Econ.quoteBuy(raw);
+      const eth = Number(q.cost)/1e18;
+      if(!confirm(`Buy ${fmtShort(raw)} BACK for ${eth.toFixed(6)} ETH?\n\nVerify the contract on etherscan before sending.`)) return;
+      await Econ.buy(raw, q.cost);
+      setTimeout(()=>UI.refreshAll(), 4000);
+    }catch(e){ toast(e.message||String(e),"err"); }
+  })();
+}
+
+/* ---------- touch ---------- */
+function setupTouch(){
+  const st=$("stick"), kn=$("knob");
+  let sid=null, ox=0, oy=0;
+  st.addEventListener("touchstart",e=>{
+    const t=e.changedTouches[0]; sid=t.identifier;
+    const r=st.getBoundingClientRect();
+    ox=r.left+r.width/2; oy=r.top+r.height/2;
+    Input.stick.active=true; e.preventDefault();
+  },{passive:false});
+  st.addEventListener("touchmove",e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier!==sid) continue;
+      let dx=t.clientX-ox, dy=t.clientY-oy;
+      const m=Math.hypot(dx,dy), R=52;
+      if(m>R){ dx=dx/m*R; dy=dy/m*R; }
+      kn.style.transform=`translate(${dx}px,${dy}px)`;
+      Input.stick.x=dx/R; Input.stick.y=dy/R;
+    }
+    e.preventDefault();
+  },{passive:false});
+  const end=()=>{ sid=null; Input.stick.active=false; Input.stick.x=0; Input.stick.y=0;
+                  kn.style.transform=""; };
+  st.addEventListener("touchend",end); st.addEventListener("touchcancel",end);
+
+  const hold=(id,on,off)=>{
+    const b=$(id);
+    const down=e=>{ e.preventDefault(); b.classList.add("on"); on(); };
+    const up  =e=>{ e.preventDefault(); b.classList.remove("on"); off&&off(); };
+    b.addEventListener("touchstart",down,{passive:false});
+    b.addEventListener("touchend",up,{passive:false});
+    b.addEventListener("touchcancel",up,{passive:false});
+    // mouse fallback so the pad is testable on a desktop with a touchscreen
+    b.addEventListener("mousedown",down);
+    b.addEventListener("mouseup",up);
+  };
+  const tap=(id,fn)=>{
+    const b=$(id);
+    const go=e=>{ e.preventDefault(); b.classList.add("on");
+                 setTimeout(()=>b.classList.remove("on"),110); fn(); };
+    b.addEventListener("touchstart",go,{passive:false});
+    b.addEventListener("mousedown",go);
+  };
+  hold("t-sprint",()=>{Input.sprint=true;},()=>{Input.sprint=false;});
+  tap("t-exit", ()=>{ if(G.state==="play") extract(); });
+  tap("t-claim",()=>doClaim());
+  tap("t-horde",()=>summonHorde());
+  tap("t-menu", ()=>UI.toMenu());
+
+  // right-half drag = look
+  let lsid=null,llx=0,lly=0;
+  cvGL.addEventListener("touchstart",e=>{
+    const t=e.changedTouches[0];
+    if(t.clientX < window.innerWidth*0.35) return;
+    lsid=t.identifier; llx=t.clientX; lly=t.clientY;
+  },{passive:true});
+  cvGL.addEventListener("touchmove",e=>{
+    for(const t of e.changedTouches){
+      if(t.identifier!==lsid) continue;
+      look(t.clientX-llx, t.clientY-lly);
+      llx=t.clientX; lly=t.clientY;
+    }
+  },{passive:true});
+  cvGL.addEventListener("touchend",()=>{ lsid=null; },{passive:true});
+}
+
+/* ==========================================================================
+   13. Boot
+   ========================================================================== */
+(async function boot(){
+  const bar=$("bar"), st=$("lstat");
+  const step=(f,l)=>{ bar.style.width=(f*100).toFixed(0)+"%"; st.textContent=l; };
+
+  try{
+    step(0.12,"verifying keccak256…");
+    step(0.3,"generating textures…");
+    buildTextures();
+    step(0.58,"compiling shaders…");
+    initGL();
+    resizeGL();
+    step(0.78,"generating the building…");
+    newRun();
+    Econ.loadPractice();
+    // Rehydrate an in-flight run so a reload cannot orphan an open stake.
+    (function(){
+      const r = Econ.loadRun();
+      if(!r || r.settled) return;
+      if(Econ.mode!==r.mode || (r.mode==="earn" && r.account!==Chain.account)) return;
+      Econ.runStartedAt=r.startedAt; Econ.runEndsAt=r.endsAt;
+      Econ.runStake=r.stake;     Econ.runSettled=false; Econ.account=r.account;
+      console.info("resumed open run, ends in",
+                   Math.max(0, r.endsAt-Math.floor(Date.now()/1000))+"s");
+    })();
+    step(0.92,"wiring the chain…");
+    UI.init();
+    UI.onAccountChange();
+    UI.paintEcon();
+    step(1,"ready");
+    $("loading").style.display="none";
+    $("menu").style.display="flex";
+    requestAnimationFrame(frame);
+
+    if(Chain.account){
+      try{ await Econ.refresh(); UI.paintEcon(); }catch{}
+    }
+
+    cvGL.addEventListener("webglcontextlost",e=>{
+      e.preventDefault();
+      GL.ok=false;
+      toast("Graphics context lost — reload the page","err");
+    });
+  }catch(err){
+    console.error(err);
+    st.textContent="couldn't start: "+(err.message||err);
+    $("lhint").textContent="this build needs WebGL — try a different browser or enable hardware acceleration";
+  }
+})();
+</script>
+</body>
+</html>
